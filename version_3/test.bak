@@ -1,0 +1,8 @@
+#lang reader "functional_reactive_language_3.rkt"
+
+
+(define seconds (make-event))
+(define t (map (lambda (seconds)
+                 (+ seconds 1))
+               seconds))
+(define g 
