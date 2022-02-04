@@ -1,0 +1,3 @@
+#lang br/quicklang
+(define global-env-formal (vector '+ '- '> '< '= 'eq? 'equal?))
+(define global-env-actual (vector + - > < = eq? equal?))

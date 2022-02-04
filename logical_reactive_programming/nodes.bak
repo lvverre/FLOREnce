@@ -1,0 +1,43 @@
+#lang br/quicklang
+(provide make-alpha-node make-terminal-node add-successor! add-rule-to-root! make-root); send-to-successors!)
+(require "inbox.rkt" (prefix-in queue: "queue.rkt"))
+;ALPHA
+(define inbox-size 20)
+
+;TODO make a inbox 
+(struct alpha-node (id conditions partial-matches successors inbox) #:transparent #:mutable)
+(define (make-alpha-node id conditions)
+  (alpha-node id conditions '() '() (make-inbox inbox-size)))
+
+(define (add-successor! alpha-node successor-node)
+  (set-alpha-node-successors! alpha-node (cons successor-node (alpha-node-successors alpha-node))))
+
+;(define (process-alpha-node node queue)
+ ; (let ((token (take-message (alpha-node-inbox node))))
+  ;  (if ((alpha-node-conditions node) token)
+   ;     (for-each (lambda (successor) 
+    ;                (enqueue!  
+     ;               (alpha-node-successors node)
+
+
+;TERMINAL
+(struct terminal-node ( actions inbox) #:transparent)
+(define (make-terminal-node actions)
+  (terminal-node actions (make-inbox inbox-size)))
+
+
+
+;ROOT
+(struct root (successors) #:mutable #:transparent)
+(define (make-root)
+  (root '()))
+(define (add-rule-to-root! root successor-node)
+  (set-root-successors! root (cons successor-node (root-successors root) )))
+
+;(define (send-to-successors! queue root token)
+ ; (for-each
+  ; (lambda (successor)
+   ;  (add-message (alpha-node-inbox successor) token)
+    ; (enqueue! queue successor))
+   ;(root-successors root)))
+  

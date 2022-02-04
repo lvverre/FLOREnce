@@ -1,0 +1,12 @@
+#lang br/quicklang
+(provide (all-defined-out))
+
+;ALPHA-token
+(struct alpha-token (id args) #:transparent)
+(define (make-alpha-token id args)
+  (alpha-token id args))
+
+;BETA-token
+(struct beta-token (pms owner) #:transparent)
+
+

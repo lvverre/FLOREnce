@@ -1,0 +1,1 @@
+("8.2" ta6nt ("49247f19df42db2ef98b0b28dd85dd583ab751ca" . "cdc335b07fd52f76df320f0bc5d520f275b98c12") #"C:\\Users\\louis\\Documents\\School\\master\\ma2\\masterThesis\\prototype-logic-reactive-programming\\version_5\\e-environment.rkt" (collects #"br" #"quicklang.rkt") (collects #"errortrace" #"errortrace-key.rkt") (collects #"racket" #"runtime-config.rkt"))
