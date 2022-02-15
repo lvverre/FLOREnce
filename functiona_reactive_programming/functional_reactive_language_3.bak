@@ -17,20 +17,76 @@
         PARSE-TREE ...)))
 (provide (rename-out [functionalRE3-module-begin #%module-begin]))
 
+(define permanent-mark 'permanent-mark)
+(define temporary-mark 'temporary-mark)
+
+
+
+;;from https://en.wikipedia.org/wiki/Topological_sorting#:~:text=In%20computer%20science%2C%20a%20topological,before%20v%20in%20the%20ordering.
+(define (topological-sort start-node)
+  (define (get-events start-node)
+    (define nodes '())
+    (define (loop node)
+      (node-predecessor
+  (define (reset node)
+    (when (node-visited node)
+      (set-node-visited! node #f)
+      (for-each
+       reset
+       (node-predecessors node))))
+  (define (visit  node)
+    (cond ((eq? permanent-mark (node-visited node)))
+          ((eq? temporary-mark (node-visited node))
+           (error "There is a cycle"))
+          (else
+           (cond ((null? (node-predecessors node))
+                  (cons node '()))
+                 ((or-node? node)                 
+                  (set-node-visited! node temporary-mark)
+                  (map
+                   (lambda (node)
+                     (let ((order (visit  node)))
+                       (reset node)
+                       order))
+                   (node-predecessors node)
+                   ))
+                 (else
+                  (set-node-visited! node temporary-mark)
+
+
+                  (let ((new-order
+                         (foldl                   
+                          visit
+                          order
+                          (node-predecessors node)
+                          )))
+                    (set-node-visited! node permanent-mark)
+                    (cons node new-order)
+                  
+
+                  ))))
+  (let ((orders (visit '() start-node)))
+    (set-event-node-order! (last orders) orders))
+  (reset node))
+                 
+           
+         
+         
 
 ;MAKE-EVENT
-(struct node (successors) #:mutable)
-(struct event-node node ())
+(struct node (predecessors visited value) #:mutable)
+(struct event-node node (order) #:mutable)
 (struct function-node node (function) )
-(struct filter-node node (filter function) )
+(struct or-node function-node ())
+(struct filter-node node ( filter function) )
 ;(struct event (observers) #:mutable)
 (define (make-event)
-  (event-node '()))
-(define (make-function-node function)
-  (function-node '() function))
+  (event-node '() #f '() '()))
+(define (make-function-node predecessors function)
+  (function-node predecessors #f null '() function))
 
-(define (make-filter-node filter function)
-  (filter-node '() filter function))
+(define (make-filter-node predecessors filter function)
+  (filter-node predecessors #f null '() filter function))
 
 ;:=
 ;(define (:= var val env)
@@ -40,40 +96,41 @@
 (define (add-observer predecessor-node new-function)
   ;see if it is an event
   (if (node? predecessor-node)
+      
       ;make a new node
-      (let ((successor-node (make-function-node new-function)))
-        ;add new node to successors of old
-        (set-node-successors! predecessor-node (cons successor-node (node-successors predecessor-node)))
-        ;return new node
-        successor-node)
+     (let ((successor-node (make-function-node (list predecessor-node) new-function)))
+       (topological-sort successor-node)
+       successor-node)
+       
       (error "wrond type of argument given")))
 
 ;REMOVE OBSERVER
-(define (remove-observer predecessor-node observer-node)
-  (if (node? predecessor-node)
-      (if (node? observer-node)
-          ;remove node from successors
-          (set-node-successors!
-           predecessor-node
-           (remq observer-node (node-successors predecessor-node)))
-          (error "wrong type of second argument"))
-                                
-      (error "wrong type of first argument")))
+;;TODO recalculate sort
+;(define (remove-observer predecessor-node observer-node)
+ ; (if (node? predecessor-node)
+  ;    (if (node? observer-node)
+  ;        ;remove node from successors
+  ;        (set-node-successors!
+  ;         predecessor-node
+  ;         (remq observer-node (node-successors predecessor-node)))
+  ;        (error "wrong type of second argument"))
+  ;                              
+  ;    (error "wrong type of first argument")))
 
 ;
 ;MAP  OBSERVER
 ;(gives back a new event)
 
-(define (map new-function event)
+(define (map new-function predecessor-node)
   (if (node? event)
       ;make 2 nodes 1 for the function and one to send the result to
-      (let ((successor-node (make-function-node new-function))
+      (let ((successor-node (make-function-node predecessor-node new-function))
             (successor-of-successor-node (make-event)))
         ;add function node to event successors
-        ;add node for result to successors of function node
-        (set-node-successors! event (cons successor-node (node-successors event)))
+       ;add node for result to successors of function node
+       (set-node-successors! event (cons successor-node (node-successors event)))
         (set-node-successors! successor-node (cons successor-of-successor-node '()))
-        ;give back the node for the result
+        give back the node for the result
         successor-of-successor-node)
       (error "wrong type of argument given")))
 
@@ -86,7 +143,7 @@
     [(event-node _ )
      (propagate-event node value)]
     ;for a function execute the function on the give value en send result to successors
-    [(function-node _ function)
+    [(function-node _ _ function)
      (propagate-event node (function value))]
     ;filter node first apply filter on value when #t then propagate result to successors
     [(filter-node _ filter function)
@@ -132,19 +189,22 @@
 ;EVENT-AND
 ;
 
-(define (event-and event filter-function observer-function)
+(define (event-filter event filter-function observer-function)
   (if (node? event)
       (begin
         ;make node with filter
-        (let* ((node-filter (make-filter-node filter-function observer-function))) 
+        (let* ((node-filter (make-filter-node (list event) filter-function observer-function))) 
                ;add new node to successors
-          (set-node-successors! event (cons node-filter (node-successors event)))
+          (set-node-ssors! event (cons node-filter (node-successors event)))
           ;give back filter node
           node-filter))
       (error "wrong type of argument given")))
 
 
-(provide event-or add-observer define + make-event lambda change-event display map event-and > remove-observer)
+
+
+
+(provide event-or add-observer define + make-event lambda change-event display map event-filter > remove-observer)
 
 
 

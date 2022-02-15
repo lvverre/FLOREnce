@@ -1,4 +1,4 @@
-#lang br/quicklang
+#lang reader "language3.rkt"
 (rule: j where:
          (:= kl (event-condition z (?x ?y) (> ?x ?y)))
          (:= v (event-condition z (?x ?y) (< ?x ?y)))
