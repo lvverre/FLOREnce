@@ -33,7 +33,3 @@
 (define (make-join-node left right condition)
   (join-node '() '() left right condition))
 
-;NOT-NODE
-(struct not-node filter-node (left-activation right-activation conditions) #:transparent #:mutable)
-(define (make-not-node left right conditions)
-  (not-node '() '() left right conditions))
