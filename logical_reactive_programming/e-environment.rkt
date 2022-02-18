@@ -31,7 +31,7 @@
 ;
 
 
-(struct fact (id args)) 
+
 (struct pm (env ) #:transparent)
 
 (define get-var car)

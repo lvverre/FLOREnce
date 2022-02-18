@@ -9,6 +9,6 @@
   (alpha-token add? id args))
 
 ;BETA-token
-(struct beta-token token (pms owner) #:transparent)
+(struct beta-token token (pm owner) #:transparent)
 
 
