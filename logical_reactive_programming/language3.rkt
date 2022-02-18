@@ -61,7 +61,7 @@
              (add-successor-to-node! first-alpha-node terminal-node))
             (else
              ;else convert the other alpha-lists to alpha-nodes and join-nodes
-             (let ((last-join-node (convert-to-nodes first-alpha-node (cdr alpha-nodes) )))
+             (let ((last-join-node (combine-to-join-nodes first-alpha-node (cdr alpha-nodes) )))
                ;set the last join-node to the terminal-node
                (add-successor-to-node! last-join-node terminal-node)))))
   )
@@ -100,7 +100,7 @@
 
 ;makes the joins nodes and other alpha-nodes and link them together
 
-(define (convert-to-nodes left-node alpha-nodes)
+(define (combine-to-join-nodes left-node alpha-nodes)
   (let* ((first-alpha-node (car alpha-nodes))
          
          (new-join-node  ;make join-node
@@ -119,7 +119,7 @@
     ;end step
     (if (null? (cdr alpha-nodes))
         new-join-node
-        (convert-to-nodes new-join-node (cdr alpha-nodes) ))))
+        (combine-to-join-nodes new-join-node (cdr alpha-nodes) ))))
 
 
 
@@ -128,18 +128,15 @@
 ;
 
 (define (update-pms-and-propagate old-token new-pm-env node)
- 
   (let ((beta-token (beta-token (token-add? old-token) (pm new-pm-env) node)))
-    (display "token add?")
-    (display (token-add? old-token))
+  
     (if (token-add? old-token)
         (set-filter-node-partial-matches! node (cons (pm new-pm-env) (filter-node-partial-matches node)))
         (begin
-          (display "REMOVE FILTER")
-          
           (set-filter-node-partial-matches!
          node
-         (remove-partial-matches beta-token (filter-node-partial-matches node))))) 
+         (remove-partial-matches beta-token (filter-node-partial-matches node)))
+          )) 
         
    
     (for-each (lambda (successor)
@@ -158,39 +155,17 @@
 ;PROCESS-JOIN-NODE
 ;
 
-;processes tokens that come from the left node
-;so partial-matches are from the right node
-(define (propagation-from-left token list-lists-partial-matches join-node )
-  (let ((conditions (join-node-conditions join-node))
-        ;take left-partial-matches
-        (left-pm (beta-token-pm token)))
-    
-    (for-each (lambda (right-pm)
-                (let ((combined-pm (combine-env-or-false (pm-env right-pm) (pm-env left-pm))))
-                  (when combined-pm
-                    (when
-                        ;check conditions
-                        (for/and ([condition conditions])
-                          ;pm-env is the left-pms
-                          ;event-env is the (partial-match-env (car right-pms))
-                          ;because it is right, there will only be 1 partial-match be in right-pms and from that match you need to
-                          ;take the env
-                          (execute condition  condition-global-env   combined-pm))                      ;join the pms in one list
-                      
-                        (update-pms-and-propagate token combined-pm join-node)))))
-                       
-              list-lists-partial-matches)))
 
 
 ;token comes from right
-(define (propagation-from-right token partial-matches join-node)
+(define (execute-join-node token partial-matches join-node)
   
   (let ((conditions (join-node-conditions join-node))
-        (right-pm  (beta-token-pm token)))
+        (token-pm  (beta-token-pm token)))
     
-    (for-each (lambda (left-pm)
+    (for-each (lambda (store-pm)
                
-                (let ((combined-pm-env (combine-env-or-false (pm-env right-pm) (pm-env left-pm))))
+                (let ((combined-pm-env (combine-env-or-false (pm-env token-pm) (pm-env store-pm))))
                   (when combined-pm-env
                     (when
                         (for/and ([condition conditions])
@@ -225,8 +200,8 @@
     [(join-node _ _ left-predecessor  right-predecessor conditions)
      (display (format "Join-node \n"))
      (if (eq? (beta-token-owner token) left-predecessor)
-         (propagation-from-left token (filter-node-partial-matches right-predecessor) node)
-         (propagation-from-right token (filter-node-partial-matches left-predecessor) node))]
+         (execute-join-node token (filter-node-partial-matches right-predecessor) node)
+         (execute-join-node token (filter-node-partial-matches left-predecessor) node))]
 
 
     [(emit-t-node name exprs)
@@ -257,24 +232,19 @@
 ;
 ;add-fact
 ;
+
+(define (propagate-alpha-node fact add?)
+  (cond ((alpha-token? fact)
+         (let ((fact fact))
+           (set-token-add?! fact add?)
+           (make-propagate-function fact)))
+        (else (error (format "~a is not a fact" fact)))))
 ;propagates an event with name NAME and args -values trough the DAG
 (define-macro (add: FACT)
-  #'(cond ((alpha-token? FACT)
-           (let ((fact FACT))
-             (set-token-add?! fact #t)
-             (make-propagate-function fact)))
-          (else (error (format "~a is not a fact" FACT)))))
+  #'(propagate-alpha-node FACT #t))
 
 (define-macro (remove: FACT)
-  #'(cond ((alpha-token? FACT)
-           (let ((fact FACT))
-             (set-token-add?! fact #f)
-             
-             (make-propagate-function fact)))
-          (else (error (format "~a is not a fact" FACT)))))
-
-
-
+  #'(propagate-alpha-node FACT #f))
 
 (define-macro (fact: NAME ARGS ...)
   #'(alpha-token null 'NAME (list ARGS ...)))

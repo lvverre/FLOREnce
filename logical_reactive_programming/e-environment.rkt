@@ -40,13 +40,18 @@
 (define (remove-partial-matches token partial-matches)
   (filter
    (lambda (partial-match)
-     (let ((token-pm-env (beta-token-pm token))
+  
+     (let ((token-pm-env (pm-env (beta-token-pm token)))
            (stored-pm-env (pm-env partial-match)))
-       (for/and ([var-val-pair token-pm-env])
-         (and (occurs? (get-var var-val-pair) stored-pm-env)
-              (equal? (lookup-pm-var stored-pm-env (get-var var-val-pair))
-                      (get-val var-val-pair)))))
-       )
+       (let ((z (for/and ([var-val-pair token-pm-env])
+                 
+                  
+                  (and (occurs? (get-var var-val-pair) stored-pm-env)
+                       (equal? (lookup-pm-var stored-pm-env (get-var var-val-pair))
+                      (get-val var-val-pair))))))
+         (display (format "Z: ~a" z))
+         (not z))
+       ))
    partial-matches))
 
 
