@@ -47,8 +47,17 @@
 ;
 
 
-(struct partial-match (event-var event-id env original) #:transparent)
 
+(struct pm-
+
+(struct pm (event-id env original) #:transparent)
+(define (pm-equal? pm1 pm2)
+  (and (equal? (pm-event-var pm1)
+               (pm-event-var pm2))
+       (equal? (pm-event-id pm1)
+               (pm-event-id pm2))
+       (equal? (pm-env pm1)
+               (pm-env pm2))))
 
 
 (define empty-pm-env '())
@@ -56,21 +65,16 @@
 (define (lookup-pm-var env var)
   (cond ((eq? empty-pm-env env)
          (error (format "pm-variable: ~a not found" var)))
-        ((equal? var (partial-match-event-var (car env)))
-         (partial-match-env (car env)))
+        ((equal? var (pm-event-var (car env)))
+         (pm-env (car env)))
         (else
          (lookup-pm-var (cdr env) var))))
- ; (let ((val-env-pair (assoc var env)))
-  ;  (if val-env-pair
-   ;     (cdr val-env-pair)
-    ;    (error (format "pm-variable: ~a not found" var)))))
+
 ;
 ;todo look at this
 (define (ext-pm-env env val)
   (cons val env))
- ; (if (occurs? val var env)
-  ;    #f
-   ;   (cons  (cons var val) env)))
+
 
 
 

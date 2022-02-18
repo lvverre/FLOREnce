@@ -14,10 +14,10 @@
   (set-filter-node-successors! node (cons new-successor (filter-node-successors node))))
 
 ;ALPHA NODE
-(struct alpha-node filter-node (variable event-id args conditions) #:transparent)
+(struct alpha-node filter-node ( event-id args (conditions #:mutable)) #:transparent)
 
-(define (make-alpha-node variable event-id args conditions)
-  (alpha-node '() '() variable event-id args conditions))
+(define (make-alpha-node  event-id args conditions)
+  (alpha-node '() '()  event-id args conditions))
 
 
 ;TERMINAL NODE

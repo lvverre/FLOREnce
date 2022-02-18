@@ -1,24 +1,8 @@
 #lang racket
+(require "token.rkt")
 (provide (all-defined-out))
 
-;
-;EVENT-VARIABLES
-;
-(define (occurs? var val env)
-  (assoc var env))
 
-(define empty-event-env '())
-(define (ext-event-env var val env)
-  (if (occurs? val var env)
-      #f
-      (cons  (cons var val) env)))
-
-
-(define (lookup-event-var env var)
-  (let ((val-env-pair (assoc var env)))
-    (if val-env-pair
-        (cdr val-env-pair)
-        (error (format "event-variable: ~a not found" var))))) 
 
 ;
 ;GLOBAL-VARIABLES
@@ -47,36 +31,71 @@
 ;
 
 
-(struct pm (event-var event-id env original) #:transparent)
-(define (pm-equal? pm1 pm2)
-  (and (equal? (pm-event-var pm1)
-               (pm-event-var pm2))
-       (equal? (pm-event-id pm1)
-               (pm-event-id pm2))
-       (equal? (pm-env pm1)
-               (pm-env pm2))))
+(struct fact (id args)) 
+(struct pm (env ) #:transparent)
 
+(define get-var car)
+(define get-val cdr)
+
+(define (remove-partial-matches token partial-matches)
+  (filter
+   (lambda (partial-match)
+     (let ((token-pm-env (beta-token-pm token))
+           (stored-pm-env (pm-env partial-match)))
+       (for/and ([var-val-pair token-pm-env])
+         (and (occurs? (get-var var-val-pair) stored-pm-env)
+              (equal? (lookup-pm-var stored-pm-env (get-var var-val-pair))
+                      (get-val var-val-pair)))))
+       )
+   partial-matches))
+
+
+(define (occurs? var env)
+  (assoc var env))
 
 (define empty-pm-env '())
 
+(define (ext-pm-env var val env)
+  (if (occurs? var env)
+      #f
+      (cons  (cons var val) env)))
+
+
+(define (combine-env-or-false env-1 env-2)     
+    (if (possible-to-combine? env-1 env-2)
+        (combine-pm-env env-1 env-2)
+        #f))
+
+(define (possible-to-combine? env-1 env-2)
+  (cond ((null? env-1)
+         (append env-1 env-2))
+        ((or (not (occurs?  (get-var (car env-1)) env-2))
+             (equal? (lookup-pm-var env-2 (get-var (car env-1))) (get-val (car env-1))))
+         (possible-to-combine? (cdr env-1) env-2 ))
+        (else #f)))
+
+(define (combine-pm-env env-1 env-2)
+  (remove-duplicates (append env-1 env-2)))
+
+
+
+
 (define (lookup-pm-var env var)
-  (cond ((eq? empty-pm-env env)
-         (error (format "pm-variable: ~a not found" var)))
-        ((equal? var (pm-event-var (car env)))
-         (pm-env (car env)))
-        (else
-         (lookup-pm-var (cdr env) var))))
- ; (let ((val-env-pair (assoc var env)))
-  ;  (if val-env-pair
-   ;     (cdr val-env-pair)
-    ;    (error (format "pm-variable: ~a not found" var)))))
+  (let ((val-env-pair (occurs? var env)))
+    (if val-env-pair
+        (cdr val-env-pair)
+        (error (format "variable: ~a not found" var))))) 
+
+
+
+
+
+
+
+
 ;
-;todo look at this
-(define (ext-pm-env env val)
-  (cons val env))
- ; (if (occurs? val var env)
-  ;    #f
-   ;   (cons  (cons var val) env)))
+
+
 
 
 
