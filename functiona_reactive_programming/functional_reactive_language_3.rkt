@@ -1,4 +1,5 @@
 #lang br/quicklang
+(require "nodes.rkt")
 (define (read-syntax path port)
   (define string-tree  (port->lines port))
 ;  (display string-tree)
@@ -20,7 +21,6 @@
 (define permanent-mark 'permanent-mark)
 (define temporary-mark 'temporary-mark)
 
-(define counter 0)
 
 
 ;;from https://en.wikipedia.org/wiki/Topological_sorting#:~:text=In%20computer%20science%2C%20a%20topological,before%20v%20in%20the%20ordering.
@@ -181,58 +181,7 @@
   
   
            
-         
-         
 
-;MAKE-EVENT
-(struct node (predecessors successors visited value)  #:mutable)
-(struct event-node node (order test)  #:mutable)
-(struct function-node node (function test)  #:mutable)
-(struct or-node node (new function test) )
-(struct filter-node node ( filter function test)  #:mutable)
-(struct wrapper-or-node (node activation))
-;(struct event (observers) #:mutable)
-
-(define (make-or-node left right function)
-  (display "Made or node: ")
-  (set! counter (+ counter 1))
-  (display counter)
-  (newline)
-  (or-node (list left right) '() #f 'undefined #f function counter))
-  
-(define (make-event)
-   (display "Made event: ")
-
-    (set! counter (+ counter 1))
-    (display counter)
-  (newline)
-  (let ((new-event (event-node '() '() #f 'undefined '() counter)))
-    (set-event-node-order! new-event (list new-event))
-    new-event))
-(define (make-map-event predecessors)
-  (display "Made map event: ")
-
-    (set! counter (+ counter 1))
-    (display counter)
-  (newline)
-  (let ((new-event (event-node predecessors '() #f 'undefined '() counter)))
-    (set-event-node-order! new-event (list new-event))
-    new-event))
-(define (make-function-node predecessors function)
-   (display "Made function node: ")
-
-    (set! counter (+ counter 1))
-    (display counter)
-  (newline)
-  (function-node predecessors '() #f 'undefined  function counter))
-
-(define (make-filter-node predecessors filter function)
-   (display "Made filter event: ")
-
-    (set! counter (+ counter 1))
-    (display counter)
-  (newline)
-  (filter-node predecessors '() #f 'undefined  filter function counter))
 
 ;:=
 ;(define (:= var val env)
@@ -245,7 +194,7 @@
   (if (node? predecessor-node)
       
       ;make a new node
-     (let ((successor-node (make-function-node (list predecessor-node) new-function)))
+     (let ((successor-node (make-function-node predecessor-node new-function)))
        (set-node-successors! predecessor-node (cons successor-node (node-successors predecessor-node)))
        (topological-sort successor-node)
        successor-node)
@@ -367,10 +316,10 @@
 ;
 
 ;makes node for when a
-(define (event-or event-1 event-2 new-function)
+(define (event-or event-1 event-2)
   (if (and (event-node? event-1)
            (event-node? event-2))
-      (let ((successor-node (make-or-node  event-1 event-2 new-function)))
+      (let ((successor-node (make-or-node  event-1 event-2 )))
         ;add new node to successors of both events
         (set-node-successors! event-1 (cons successor-node (node-successors event-1)))
         (set-node-successors! event-2 (cons successor-node (node-successors event-2)))
@@ -382,11 +331,11 @@
 ;EVENT-AND
 ;
 
-(define (event-filter event filter-function observer-function)
+(define (event-filter event filter-function)
   (if (node? event)
       (begin
         ;make node with filter
-        (let* ((node-filter (make-filter-node (list event) filter-function observer-function))) 
+        (let* ((node-filter (make-filter-node (list event) filter-function))) 
                ;add new node to successors
           (set-node-successors! event (cons node-filter (node-successors event)))
           (topological-sort node-filter)

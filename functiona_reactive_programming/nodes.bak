@@ -1,0 +1,8 @@
+#lang br/quicklang
+;MAKE-EVENT
+(struct node (predecessors successors visited value)  #:mutable)
+(struct event-node node (order test)  #:mutable)
+(struct function-node node (function test)  #:mutable)
+(struct or-node node (new function test) )
+(struct filter-node node ( filter function test)  #:mutable)
+(struct wrapper-or-node (node activation))
