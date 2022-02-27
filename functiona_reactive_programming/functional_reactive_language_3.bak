@@ -194,7 +194,7 @@
   (if (node? predecessor-node)
       
       ;make a new node
-     (let ((successor-node (make-function-node (list predecessor-node) new-function)))
+     (let ((successor-node (make-function-node predecessor-node new-function)))
        (set-node-successors! predecessor-node (cons successor-node (node-successors predecessor-node)))
        (topological-sort successor-node)
        successor-node)
@@ -316,10 +316,10 @@
 ;
 
 ;makes node for when a
-(define (event-or event-1 event-2 new-function)
+(define (event-or event-1 event-2)
   (if (and (event-node? event-1)
            (event-node? event-2))
-      (let ((successor-node (make-or-node  event-1 event-2 new-function)))
+      (let ((successor-node (make-or-node  event-1 event-2 )))
         ;add new node to successors of both events
         (set-node-successors! event-1 (cons successor-node (node-successors event-1)))
         (set-node-successors! event-2 (cons successor-node (node-successors event-2)))
