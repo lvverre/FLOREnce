@@ -52,7 +52,7 @@
            ;take the first alpha-node
            (first-alpha-node (car alpha-nodes))
            ;gives back terminal node
-           (terminal-node BODY))
+           (terminal-node (make-terminal-node 'BODY)))
       ;add first alpha-node to the root
       (add-rule-to-root! first-alpha-node)
       ;if there a no more event conditions
@@ -67,26 +67,48 @@
   )
 
 
+(define (make-terminal-node todo)
+  (match todo
+    [`(,op (fact: ,name ,args ...))
+     (let ((compiled-args (map (lambda (arg)
+                                 (compile arg #f))
+                                 args)))
+       (if (symbol? name)
+           (match op
+             [add:
+              (emit-t-node name compiled-args)]
+             [remove:
+              (retract-t-node name compiled-args)]
+             [ _ (error (format "~a operator is not allowed then:-part of rule" op))])
+           (error (format "~a is not a symbol" name))))]
+    ['nothing 
+     empty-t-node]
+    [_ (error (format "~a is not a valide expression for the then:-part of a rule" todo))])) 
+     
+  
+
+
+
 ;BODY
 ;
 
 
-(define-macro (emit: NAME with: EXPRS ...)
+;(define-macro (emit: NAME with: EXPRS ...)
   ;compile all expressions in the body
   ;#f is given because it is the body that is compiled
-  #'(let ((expressions (map (lambda (expr)
-                              (compile expr #f))
-                            (list (quote EXPRS) ... ) )))
-      (if (symbol? (quote NAME))
-          (emit-t-node (quote NAME) expressions)
-          (error (format "~a is not a symbol" (quote NAME))))))
-(define-macro (retract: NAME with: EXPRS ...)
-   #'(let ((expressions (map (lambda (expr)
-                              (compile expr #f))
-                            (list (quote EXPRS) ... ) )))
-      (if (symbol? (quote NAME))
-          (retract-t-node (quote NAME) expressions)
-          (error (format "~a is not a symbol" (quote NAME))))))
+ ; #'(let ((expressions (map (lambda (expr)
+ ;                             (compile expr #f))
+ ;                           (list (quote EXPRS) ... ) )))
+ ;     (if (symbol? (quote NAME))
+ ;         (emit-t-node (quote NAME) expressions)
+ ;         (error (format "~a is not a symbol" (quote NAME))))))
+;(define-macro (retract: NAME with: EXPRS ...)
+;   #'(let ((expressions (map (lambda (expr)
+;                              (compile expr #f))
+;                            (list (quote EXPRS) ... ) )))
+;      (if (symbol? (quote NAME))
+;          (retract-t-node (quote NAME) expressions)
+;          (error (format "~a is not a symbol" (quote NAME))))))
 (define nothing empty-t-node)
 
 
@@ -185,7 +207,7 @@
 (define (propagate-to node token)
   (match node
     [(alpha-node partial-matches successors event-id formal-args conditions )
-     (display (format "Alpha-node \n"))
+     (display (format "Alpha-node ~a\n" token))
      
      (when (equal? (alpha-token-id token) event-id)
        
@@ -205,13 +227,14 @@
 
 
     [(emit-t-node name exprs)
-      (display (format "Emit node \n"))
+     (display (format "Emit node \n"))
      (execute-terminal-node exprs name token #t)]
     [(retract-t-node name exprs)
-      (display (format "retract node \n"))
+     (display (format "retract node \n"))
      (execute-terminal-node exprs name token #f)]
     [(empty-t-node)
      (display "END")]
+   
     ))
 
 (define (execute-terminal-node exprs name token purpose)
@@ -247,7 +270,7 @@
   #'(propagate-alpha-node FACT #f))
 
 (define-macro (fact: NAME ARGS ...)
-  #'(alpha-token null 'NAME (list ARGS ...)))
+  #'(alpha-token null 'NAME '(ARGS ...)))
      
 
       
@@ -262,7 +285,7 @@
           (event-condition error-overheating (?temp) (> ?temp 76))
           (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
       
-         then: (emit: Problem-overheating with: ?temp ?cooling-liquid))
+         then: (add: (fact: Problem-overheating ?temp ?cooling-liquid)))
 
 
 

@@ -14,17 +14,17 @@
   (set-filter-node-successors! node (cons new-successor (filter-node-successors node))))
 
 ;ALPHA NODE
-(struct alpha-node filter-node (variable event-id args conditions) #:transparent)
+(struct alpha-node filter-node ( event-id args (conditions #:mutable)) #:transparent)
 
-(define (make-alpha-node variable event-id args conditions)
-  (alpha-node '() '() variable event-id args conditions))
+(define (make-alpha-node  event-id args conditions)
+  (alpha-node '() '()  event-id args conditions))
 
 
 ;TERMINAL NODE
-(struct terminal-node () #:transparent)
-(struct empty-t-node terminal-node ())
-(struct emit-t-node terminal-node (name args) #:transparent)
-(struct retract-t-node terminal-node (name args) #:transparent)
+(struct terminal-node (todo) #:transparent)
+;(struct empty-t-node terminal-node ())
+;(struct emit-t-node terminal-node (name args) #:transparent)
+;(struct retract-t-node terminal-node (name args) #:transparent)
 
 
 
