@@ -75,14 +75,14 @@
                                  args)))
        (if (symbol? name)
            (match op
-             [add:
+             ['add:
               (emit-t-node name compiled-args)]
-             [remove:
+             ['remove:
               (retract-t-node name compiled-args)]
              [ _ (error (format "~a operator is not allowed then:-part of rule" op))])
            (error (format "~a is not a symbol" name))))]
     ['nothing 
-     empty-t-node]
+     empty-node]
     [_ (error (format "~a is not a valide expression for the then:-part of a rule" todo))])) 
      
   
@@ -228,9 +228,11 @@
 
     [(emit-t-node name exprs)
      (display (format "Emit node \n"))
-     (execute-terminal-node exprs name token #t)]
+     (execute-terminal-node exprs name token #t)
+     ]
     [(retract-t-node name exprs)
      (display (format "retract node \n"))
+     
      (execute-terminal-node exprs name token #f)]
     [(empty-t-node)
      (display "END")]
@@ -238,16 +240,17 @@
     ))
 
 (define (execute-terminal-node exprs name token purpose)
-  (let* ((args (map (lambda (expr)
-                      (execute expr
-                               body-global-env
-                               (pm-env (beta-token-pm token))
-                               ))
-                    exprs))
-         (token (alpha-token purpose name args)))
-    
-    (make-propagate-function token)))
-    
+  (when (token-add? token)
+    (let* ((args (map (lambda (expr)
+                        (execute expr
+                                 body-global-env
+                                 (pm-env (beta-token-pm token))
+                                 ))
+                      exprs))
+           (token (alpha-token purpose name args)))
+      
+      (make-propagate-function token))))
+  
 
 
 
@@ -280,12 +283,21 @@
               root))
 
 
-
 (rule: problem where:
           (event-condition error-overheating (?temp) (> ?temp 76))
           (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
       
          then: (add: (fact: Problem-overheating ?temp ?cooling-liquid)))
+(rule: 2 where:
+          (event-condition error-overheating (?temp) (> ?temp 76))
+          (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
+      
+         then: nothing)
+(rule: 2 where:
+          (event-condition error-overheating (?temp) (> ?temp 76))
+          (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
+      
+         then: (remove: (fact: error-overheating ?temp)))
 
 
 

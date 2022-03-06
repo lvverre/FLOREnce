@@ -23,6 +23,7 @@
 ;TERMINAL NODE
 (struct terminal-node () #:transparent)
 (struct empty-t-node terminal-node ())
+(define empty-node (empty-t-node))
 (struct emit-t-node terminal-node (name args) #:transparent)
 (struct retract-t-node terminal-node (name args) #:transparent)
 
