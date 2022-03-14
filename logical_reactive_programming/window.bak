@@ -1,0 +1,46 @@
+#lang br/quicklang
+(struct window (tail partial-matches seconds-interval) #:mutable #:transparent)
+(define (make-window size time)
+  (window 0 (make-vector size 0 ) time))
+
+(define size-of-window vector-length)
+;;adds element to a window
+(define (add-partial-match pm window)
+  (let ((idx (window-tail window))
+        (partial-matches (window-partial-matches window)))
+    (cond ((>= idx (size-of-window partial-matches))
+           ;;in case of no more place
+           (error-window-overflowing))
+          (else 
+           (vector-set! partial-matches idx pm)
+           (set-window-tail! window (+ idx 1))))))
+;;reset window back to an empty window
+(define (reset-window window)
+  (set-window-tail! window 0)
+  (set-window-partial-matches!
+   window
+   (make-vector (size-of-window (window-partial-matches window)) 0)))
+
+;;WINDOW OVERFLOW
+(define window-overflow-handlers '())
+;hulp function to add handler for overflowing window to list
+(define (add-overflow-handler handler)
+  (set!
+     window-overflow-handlers 
+     (cons
+      handler
+      window-overflow-handlers)))
+;macro to add exprs as lambda to list of handlers
+(define-macro (window-overflow-handler EXPRS ...)
+  #'(add-overflow-handler (lambda () EXPRS ...)))
+;executing handlers that are registered
+(define (error-window-overflowing)
+  (for-each
+   (lambda (proc)
+     (proc))
+   window-overflow-handlers))
+
+
+
+
+               

@@ -1,7 +1,7 @@
 #lang br/quicklang
 
 
-(require "compile.rkt" "nodes3.rkt" "token.rkt" "unification.rkt" "e-environment.rkt")
+(require "compile.rkt" "nodes3.rkt" "token.rkt" "unification.rkt" "e-environment.rkt" "window.rkt")
 
 (define (read-syntax path port)
   (define parse-tree (port->lines port))
@@ -93,22 +93,6 @@
 ;
 
 
-;(define-macro (emit: NAME with: EXPRS ...)
-  ;compile all expressions in the body
-  ;#f is given because it is the body that is compiled
- ; #'(let ((expressions (map (lambda (expr)
- ;                             (compile expr #f))
- ;                           (list (quote EXPRS) ... ) )))
- ;     (if (symbol? (quote NAME))
- ;         (emit-t-node (quote NAME) expressions)
- ;         (error (format "~a is not a symbol" (quote NAME))))))
-;(define-macro (retract: NAME with: EXPRS ...)
-;   #'(let ((expressions (map (lambda (expr)
-;                              (compile expr #f))
-;                            (list (quote EXPRS) ... ) )))
-;      (if (symbol? (quote NAME))
-;          (retract-t-node (quote NAME) expressions)
-;          (error (format "~a is not a symbol" (quote NAME))))))
 (define nothing empty-t-node)
 
 
@@ -153,18 +137,18 @@
   (let ((beta-token (beta-token (token-add? old-token) (pm new-pm-env) node)))
   
     (if (token-add? old-token)
-        (set-filter-node-partial-matches! node (cons (pm new-pm-env) (filter-node-partial-matches node)))
-        (begin
-          (set-filter-node-partial-matches!
-         node
-         (remove-partial-matches beta-token (filter-node-partial-matches node)))
-          )) 
-        
-   
+        (add-partial-match! (pm new-pm-env) (filter-node-partial-matches node))         
+        (remove-partial-matches! beta-token (filter-node-partial-matches node)))
+          
+    
     (for-each (lambda (successor)
        
                 (propagate-to successor beta-token))
               (filter-node-successors node))))
+
+
+
+
 
 
 
@@ -185,18 +169,19 @@
   (let ((conditions (join-node-conditions join-node))
         (token-pm  (beta-token-pm token)))
     
-    (for-each (lambda (store-pm)
-               
-                (let ((combined-pm-env (combine-env-or-false (pm-env token-pm) (pm-env store-pm))))
-                  (when combined-pm-env
-                    (when
-                        (for/and ([condition conditions])
-                          
-                          (execute condition  condition-global-env   combined-pm-env))
+    (for-all-partial-matches
+     (lambda (store-pm)
+       
+       (let ((combined-pm-env (combine-env-or-false (pm-env token-pm) (pm-env store-pm))))
+         (when combined-pm-env
+           (when
+               (for/and ([condition conditions])
                  
-                    (update-pms-and-propagate token combined-pm-env join-node)))))
-                    
-              partial-matches)))
+                 (execute condition  condition-global-env   combined-pm-env))
+             (display "propagate")
+             (update-pms-and-propagate token combined-pm-env join-node)))))
+     
+     partial-matches)))
 
 
       
@@ -288,16 +273,16 @@
           (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
       
          then: (add: (fact: Problem-overheating ?temp ?cooling-liquid)))
-(rule: 2 where:
-          (event-condition error-overheating (?temp) (> ?temp 76))
-          (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
+;(rule: 2 where:
+ ;;         (event-condition error-overheating (?temp) (> ?temp 76))
+  ;        (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
       
-         then: nothing)
-(rule: 2 where:
-          (event-condition error-overheating (?temp) (> ?temp 76))
-          (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
-      
-         then: (remove: (fact: error-overheating ?temp)))
+  ;       then: nothing)
+;(rule: 2 where:
+ ;         (event-condition error-overheating (?temp) (> ?temp 76))
+  ;        (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
+   ;   
+    ;     then: (remove: (fact: error-overheating ?temp)))
 
 
 

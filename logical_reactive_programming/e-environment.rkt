@@ -37,21 +37,31 @@
 (define get-var car)
 (define get-val cdr)
 
+
+;check if pm env correspond to other pm-env
+(define (pm-contains-pm? pm-contained pm-contains)
+  ;taken envs
+     
+     (let ((contained-pm-env (pm-env pm-contained))
+           (contains-pm-env (pm-env pm-contains)))
+       ;for every element in token env
+       (let ((z (for/and ([var-val-pair contained-pm-env])
+                 ;check if it corresponds to the value in the contains-pm
+                  (and (occurs? (get-var var-val-pair) contains-pm-env)
+                       (equal? (lookup-pm-var contains-pm-env (get-var var-val-pair))
+                               (get-val var-val-pair))))))
+         (not z))
+       ))
+
+;check if token env correspond to pm-env
+(define (pm-contains-token? token partial-match)
+  (pm-contains-pm? (beta-token-pm token) partial-match))
+        
+
 (define (remove-partial-matches token partial-matches)
   (filter
    (lambda (partial-match)
-  
-     (let ((token-pm-env (pm-env (beta-token-pm token)))
-           (stored-pm-env (pm-env partial-match)))
-       (let ((z (for/and ([var-val-pair token-pm-env])
-                 
-                  
-                  (and (occurs? (get-var var-val-pair) stored-pm-env)
-                       (equal? (lookup-pm-var stored-pm-env (get-var var-val-pair))
-                      (get-val var-val-pair))))))
-         (display (format "Z: ~a" z))
-         (not z))
-       ))
+     (pm-contains-token? token partial-match))
    partial-matches))
 
 

@@ -61,10 +61,8 @@
        (fun-apl operator operands)))
     ;check if event-variable
     ((event-variable? expr)
-     ;check if it is in the body or condition part
-     (if condition-part
-         (event-var expr)
-         (error (format "event-variable not allowed in body with event-part: ~a" expr)))) 
+     (event-var expr))
+       
     ;check if global variable
     ((global-variable? expr)
      (global-var expr))
@@ -77,7 +75,7 @@
 (define (execute expr global-env  event-env)
   (match expr
     [(const value) value]
-    [(event-var var) (lookup-event-var event-env var)]
+    [(event-var var) (lookup-pm-var event-env var)]
     [(global-var var) (lookup-global-var global-env var)]
     [(fun-apl operator operands)
      (let ((op (execute operator global-env event-env))
