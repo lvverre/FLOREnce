@@ -226,6 +226,7 @@
 
 (define (execute-terminal-node exprs name token purpose)
   (when (token-add? token)
+    (display "add?")
     (let* ((args (map (lambda (expr)
                         (execute expr
                                  body-global-env

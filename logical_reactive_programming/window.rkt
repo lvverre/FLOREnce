@@ -2,9 +2,9 @@
 (provide (all-defined-out))
 (require "e-environment.rkt" )
 
-(struct window (tail partial-matches interval start-time) #:mutable #:transparent)
+(struct window (tail head partial-matches interval start-time) #:mutable #:transparent)
 (define (make-window size interval)
-  (window 0 (make-vector size 0 ) interval (current-seconds)))
+  (window 0 0 (make-vector size 0 ) interval (current-seconds)))
 
 
 
@@ -22,51 +22,68 @@
 
 ;;adds element to a window
 (define (add-partial-match! pm window)
-  (let ((idx (window-tail window))
-        (partial-matches (window-partial-matches window)))
+ 
     (cond
       ;((<= (+ (window-start-time window) (window-interval window)) (current-seconds))
       ; (reset-window window)
       ; (vector-set! (window-partial-matches window) 0 pm)
       ; (set-window-tail! window 1))
       ;;window full
-      ((>= idx (size-of-window partial-matches))
+      ((full? window)
            ;;in case of no more place
-       (reset-window window)
-       (vector-set! (window-partial-matches window) 0 pm)
+       (remove-first-partial-match window)
+       (add-to-window! pm window)
+       
        ;give back #t when sucessors other also need to be updates
        #t)
       ; (set-window-tail! window 1))
        ;    (error-window-overflowing))
       ;;add element to window
       (else 
-       (vector-set! partial-matches idx pm)
-       (set-window-tail! window (+ idx 1))
+       (add-to-window! pm window)
        ;give back #f when sucessors does not need to be updates
-       #f))))
+       #f)))
+
+
+
+(define (add-to-window! element window)
+  (let ((idx (window-tail window))
+        )
+    (vector-set! (window-partial-matches window) idx element)
+    (set-window-tail! window (get-next-place idx window))))
+
+(define get-pm vector-ref)
+(define set-pm! vector-set!)
 
 (define (remove-from-window! function)
   (lambda (element window)
-    (let* ((pms (window-partial-matches window))
-           ;filter out pm
-           (filtered-pms
-            (vector-filter-not
-             (lambda (pm-in-window)
-               (or
-                (number? pm-in-window)
-               
-                (function element pm-in-window)))
-             pms)))
-    ;copy filtered pms to old pms
-    (vector-copy! pms 0 filtered-pms)
-    ;adjust the tail 
-    (set-window-tail! window (vector-length filtered-pms)))))
+    (define tail-idx (window-tail window))
+    (define pms (window-partial-matches window))
+    (define (loop current-idx free-idx)
+      (display current-idx)
+      (display tail-idx)
+      (display free-idx)
+      (if (not(equal? current-idx tail-idx))
+          (begin (display "hier")
+          (cond ((function element (get-pm pms current-idx))
+                 (display "skip")
+                 (loop (get-next-place current-idx window) free-idx))
+                (else (set-pm! pms free-idx (get-pm pms current-idx))
+                      (loop
+                       (get-next-place current-idx window)
+                       (get-next-place free-idx window)))))
+          (set-window-tail! window free-idx)))
+    (loop (window-head window) (window-head window))))
+      
+   
 
 ;remove partial match
 (define remove-partial-match! (remove-from-window! pm-contains-pm?))
 
 ;remove tokens
-(define remove-partial-matches! (remove-from-window! pm-contains-token?))
+(define (remove-partial-matches! v l)
+  (display "remove")
+  ((remove-from-window! pm-contains-token?) v l))
   
    
    
@@ -80,19 +97,26 @@
        current-time
        interval)))
 
-;;reset window back to an empty window
-(define (reset-window window)
-  (let* ((c-time (current-seconds)))
-    (set-window-tail! window 0)
-    (set-window-partial-matches!
-     window
-     (make-vector (size-of-window (window-partial-matches window)) 0))
+(define (full? window)
+  (equal? (get-next-place (window-tail window) window)
+          (window-head window)))
+
+(define (empty? window)
+  (equal? (window-tail window)
+          (window-head window)))
+
+(define (get-next-place place window)
+  (modulo (+ place 1) (vector-length (window-partial-matches window))))
+;;remove first element
+(define (remove-first-partial-match window)
+  (set-window-head! window (get-next-place (window-head window) window)))
+  
    ; (set-window-start-time! window
    ;                         (get-start-time-window
    ;                          (window-start-time window)
    ;                          (current-seconds)
    ;                          (window-interval window)))
-  ))
+ ; ))
 
 ;;WINDOW OVERFLOW
 (define window-overflow-handlers '())
@@ -154,6 +178,10 @@
 
 
 
-
+(define l (make-window 3 2))
+(add-partial-match! 3 l )
+(add-partial-match! 4 l )
+(add-partial-match! 5 l)
+((remove-from-window! (lambda (el v) (eq? v el))) 4 l)
 
                

@@ -41,7 +41,11 @@
 ;check if pm env correspond to other pm-env
 (define (pm-contains-pm? pm-contained pm-contains)
   ;taken envs
-     
+     (newline)
+  (display pm-contained)
+  (newline)
+  (display pm-contains)
+  (newline)
      (let ((contained-pm-env (pm-env pm-contained))
            (contains-pm-env (pm-env pm-contains)))
        ;for every element in token env
@@ -50,11 +54,13 @@
                   (and (occurs? (get-var var-val-pair) contains-pm-env)
                        (equal? (lookup-pm-var contains-pm-env (get-var var-val-pair))
                                (get-val var-val-pair))))))
-         (not z))
+         (display z)
+         z)
        ))
 
 ;check if token env correspond to pm-env
 (define (pm-contains-token? token partial-match)
+  
   (pm-contains-pm? (beta-token-pm token) partial-match))
         
 
