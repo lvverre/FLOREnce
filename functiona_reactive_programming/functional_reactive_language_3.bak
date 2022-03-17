@@ -18,289 +18,373 @@
         PARSE-TREE ...)))
 (provide (rename-out [functionalRE3-module-begin #%module-begin]))
 
-(define permanent-mark 'permanent-mark)
-(define temporary-mark 'temporary-mark)
+
 
 
 
 ;;from https://en.wikipedia.org/wiki/Topological_sorting#:~:text=In%20computer%20science%2C%20a%20topological,before%20v%20in%20the%20ordering.
-(define (topological-sort start-node)
-  (define (get-event-nodes start-node)
+;;Topologisch sorteren
+(define (topological-sort node)
+  (define permanent-mark 'permanent-mark)
+  (define temporary-mark 'temporary-mark)
+
+  ;;resets all predecessors of the node + node to not visited
+  (define (reset node)
+    (when (node-visited node)
+      (set-node-visited! node #f)
+      (for-each
+       reset
+       (node-predecessors node))))
+  
+
+              
+
+  (define topological-sorted-list '())
+  (define index 0)
+  (define (add-node! node)
+    (set! topological-sorted-list (cons node topological-sorted-list))
+    (set! index (+ index 1)))
+  
+
+  ;;for all start-nodes start visit function
+  (define (sort start-nodes stop-node)
+    (for-each
+     (lambda (start-node)
+       (visit start-node stop-node))
+     start-nodes)
+    )
+  ;;add elements in topological order to list
+  (define (visit node stop-node)
+   
     (define (loop node)
-      (cond ((and (event-node? node) (null? (node-predecessors node)))
-             (display (event-node-test node))
-             (newline)
-             (list node))
-            ((event-node? node)
-                   (display (event-node-test node))
-             (append (append-map loop (node-predecessors node)) (list node)))
-            (else 
-             (append-map
-              loop
-              (node-predecessors node)))))
-    (append-map loop (node-predecessors start-node)))
-  (define (get-inputless-nodes node)
-    (if (null? (node-successors node))
-        (list node)
-        (append-map
-         (lambda (successor-node)
-           (get-inputless-nodes successor-node))
-         (node-successors node))))
-;(filter
-    ; (lambda (node)
-    ;   (null? (node-successors node)))
-    ; list-nodes))
-
-  (define (calculate-topologic-sort event-node)
-    (let* ((sinks (get-inputless-nodes event-node)); (event-node-order event-node)))
-           (order (topologic-sort2 sinks event-node)))
-      
-   ;   (display "TOP: ")
-   ;   (display sinks)
-   ;   (newline)
-    
-      (set-event-node-order! event-node  order)))
-      
-    (define (reset node)
-      (when (node-visited node)
-        (set-node-visited! node #f)
-        (for-each
-         reset
-         (node-successors node))))
-
-  (define (remove-first-duplicates list-order)
-    ;(display list-order)
-    (define (loop discard rest)
       (cond
-        ((null? rest)
-         '())
-        ((foldl
-              (lambda ( el acc)
-                (or acc el))
-             
-              #f
-              
-              (map null? rest))
-           
-             (cons (append discard (car rest)) (cdr rest)))
-            ((foldl
-              (lambda (el acc)
-                (and (eq? (car (car rest)) el) acc))
-              #t
-              (map car rest))
+        ;;already visited
+        ((eq? permanent-mark (node-visited node)))
+        ;;there is an error
+        ((eq? temporary-mark (node-visited node))
+         (error "There is a cycle"))
+        (else
+         (cond
+           ;;gotten to stop-node so stop with going further down the tree
+           ((or
+             (eq? node stop-node)
+             (null? (node-predecessors node)))
+            (add-node!  node)
+            (set-node-visited! node permanent-mark)
+            )
+           ((end-if-node? node)
             
-             (loop (append discard (list (car (car rest)))) (map cdr rest)))
-            (else
-            
-             (cons (append discard (car rest)) (cdr rest)))))
-    
-    
-    (map  reverse (loop '() (map reverse list-order))))
+            (let* ((then-node (end-if-then-node node))
+                   (else-node (end-if-else-node node))
+                   (start-node (car (node-successors then-node))))
+              (set-node-visited! node temporary-mark)
+              (loop start-node)
+              (set-node-visited! node permanent-mark)
+              (add-node! start-node)
+              (add-node! then-node)
+              (add-node! (add-node! (make-end-jump-node 'L (+ index 2))))
+              (add-node! else-node)
+              (add-node! (add-node! (make-end-jump-node 'R index )))
+              (add-node! node)))
               
-              
-
-  (define (topologic-sort2 start-nodes stop-node)
-    (display "start nodes")
-    (for-each display-id start-nodes)
-    (display "stop start nodes")
-    (append-map
-      (lambda (start-node)
-        (let ((r        (append-map reverse (visit start-node stop-node))))
-          (display "r: ")
-          (display r)
-          (newline)
-          r))
-     start-nodes))
-  (define (visit  start-node stop-node)
-    (define (loop node)
-      (cond ((eq? permanent-mark (node-visited node)) (display "not stop node")'())
-            ((eq? temporary-mark (node-visited node))
-             (error "There is a cycle"))
-            (else
-             (cond ((and
-                     (not (eq? stop-node node))
+               
+           ;;or node encountered
+           ((or-node? node)
+            (set-node-visited! node temporary-mark)
+            (let* ((predecessors (node-predecessors node))
+                   (end-jmp-nodes 
+                    ;for left and right predecessors do:
+                    (map
+                     (lambda (predecessor  direction)
+                       ;;make jump node and add before other nodes to list
+                       ;jump-nodes contains index to spring to
+                       (let ((jm (make-start-jump-node #f #f)))
+                         (add-node!  jm)
+                         ;;add other nodes
+                         (loop predecessor)
+                         ;;get all end nodes for the conditions in the jump-node
+                         (let ((end-nodes (get-end-nodes predecessor)))
+                           ;;change the condition in the jump-node:  node is equal to one of the endnodes
+                           (set-start-jump-node-condition!
+                            jm
+                            (lambda (node)
+                              (for/or ([end-node end-nodes])
+                                (eq? node end-node)))))
+                         ;add end jump node to register with the direction of the branch
+                         (let ((end-jmp-node (make-end-jump-node direction 0)))
+                           (add-node! end-jmp-node)
+                           ;;set the correct index to jump to 
+                           (set-start-jump-node-jump-to! jm index )
+                           end-jmp-node)))
                      
-                     (null? (node-predecessors node)))
-                    (set-node-visited! node permanent-mark)
-                    (display "fault node")
-                      (list #f))
-                   ((eq? stop-node node)
-                    (set-node-visited! node permanent-mark)
+                     predecessors
+                     
+                     (list 'L 'R))))
+              (for-each (lambda (node)
+                          (set-end-jump-node-end-idx! node index))
+                        end-jmp-nodes)
+              ;;add or node to top list
+              (add-node! node)
+              ;change mark to permanent
+              (set-node-visited! node permanent-mark)))
 
-                    (display "stop node")
-                     (list (list node)))
-                  
-           
-                  
-                 ((or-node? node)
-                  (set-node-visited! node temporary-mark)
-                  (let* ((list-orders
-                          
-                         (filter
-                          (lambda (el)
-                            el)
-                          (map
-                           loop
-                           (node-predecessors node)
-                           )))
-                         
-                         (new-orders
-                          (append (remove-first-duplicates (map car list-orders)) (map cdr list-orders))
-                         ))
-                    (set-node-visited! node permanent-mark)
-                        (if (null? new-orders)
-                            (list (list node))
-                            
-                        (map (lambda (new-order)
-                               (cons node new-order))
-                             new-orders))
-                    
-                    
-                    
-                    ))
-                 (else
-                  (let* ((list-orders (loop (car (node-predecessors node))))
-                        (new-orders     (if
-                                            (null? list-orders)
-                                            (list (list node))
-                                            (map (lambda (new-order)
-                                                   (cons node new-order))
-                                                 list-orders))))
-                    (display "k: ")
-                    (display new-orders)
-                    (newline)
-                    new-orders)
-                        
-                  )))))
-    (loop start-node))
-  (let ((event-nodes (get-event-nodes start-node)))
-  
-    (for-each calculate-topologic-sort event-nodes)
-   (for-each reset event-nodes)
-  ))
-  
-  
-           
+                
+                 
+           (else
+            ;;not or node or end event node so
+            ;;keep goind down the tree
+            (set-node-visited! node temporary-mark)
+            (loop (car (node-predecessors node)))
+            (set-node-visited! node permanent-mark)
+            (add-node!  node)
+            )))))
+    (loop node)
+   )
 
 
-;:=
-;(define (:= var val env)
- ; (environment var val env))
+  ;get a list of all end nodes of a node
+  (define (get-end-nodes node)
+    (if (and (event-node? node)
+             (null? (node-predecessors node)))
+        (list node)
+        (append-map (lambda (node)
+                      (get-end-nodes node))
+                    (node-predecessors node))))
+  
+
+  ;get topological sort
+   (sort (event-node-leafs node) node)
+  ;;reverse 
+  (let ((reverse-sorted (reverse topological-sorted-list)))
+    ;;reset all nodes
+    (for-each reset (event-node-leafs node))
+    ;;make vector and store in node
+    (set-event-node-order! node (list->vector reverse-sorted))))
+                      
+
+
+
+                    
+ ;;remove node from all predecessors nodes   
+(define (for-all-event-predecessors-remove node to-remove-node new-leaf-nodes)
+   (cond ((event-node? node)
+          
+         (let* ((leaf-nodes (event-node-leafs node))
+                (remove-idx (vector-memq to-remove-node (event-node-order node)))
+              
+               ;;remove to remove node from leaf-nodes
+                (filtered-leaf-nodes
+                 (remq to-remove-node leaf-nodes)))
+           ;;add predecessors if necessary to leaf nodes
+           (set-event-node-leafs! node (append new-leaf-nodes  filtered-leaf-nodes))
+           ;;remove node from sorted list
+           (let ((new-order (vector-filter-not (lambda (node)
+                                                 (eq? node to-remove-node))
+                                               (event-node-order node))))
+             ;;decrease all start-jump-node idx 1 down
+             (for ([node new-order])
+               (when (and (start-jump-node? node)
+                          (> (start-jump-node-jump-to node)
+                             remove-idx))
+                 (- (start-jump-node-jump-to node) 1)))
+             ;;change to new order
+             (set-event-node-order! node new-order))
+           ;;look further 
+           (for-each
+            (lambda (predecessor)
+              (for-all-event-predecessors-remove predecessor to-remove-node new-leaf-nodes))
+            (node-predecessors node))))
+         (else
+          ;;look futher in tree
+            (for-each
+           (lambda (predecessor)
+             (for-all-event-predecessors-remove predecessor to-remove-node new-leaf-nodes))
+           (node-predecessors node)))))
+          
+;;give all event-nodes a sorted list
+(define (for-all-event-predecessors-sort node to-add-node)
+  (cond ((event-node? node)
+         ;;when event node do the following:
+         (let* ((leaf-nodes (event-node-leafs node))
+               (predecessor-nodes (node-predecessors to-add-node))
+               (filtered-leaf-nodes
+                ;;remove nodes that are no longer a leaf node
+                (filter (lambda (leaf-node)
+                          (not (member leaf-node predecessor-nodes)))
+                        leaf-nodes)))
+           ;;add new node as leaf node
+           (set-event-node-leafs! node (cons to-add-node filtered-leaf-nodes))
+           ;;sort topological
+           (topological-sort node)
+           ;;go further down in tree
+           (for-each
+            (lambda (predecessor)
+              (for-all-event-predecessors-sort predecessor to-add-node))
+            (node-predecessors node))))
+        (else
+         ;;go further down in tree
+         (for-each
+          (lambda (predecessor)
+            (for-all-event-predecessors-sort predecessor to-add-node))
+          (node-predecessors node)))))
+        
+            
+
+
 
 ;ADD-observer
 (define (add-observer predecessor-node new-function)
-;  (display predecessor-node)
+
   ;see if it is an event
-  (if (node? predecessor-node)
+  (if (event-node? predecessor-node)
       
       ;make a new node
-     (let ((successor-node (make-function-node predecessor-node new-function)))
-       (set-node-successors! predecessor-node (cons successor-node (node-successors predecessor-node)))
-       (topological-sort successor-node)
+     (let ((successor-node (make-function-node (list predecessor-node) new-function )))
+       ;;update all topological lists
+       (for-all-event-predecessors-sort successor-node successor-node)
+       ;;incease successor number
+       (set-event-node-n-successors! predecessor-node (+  (event-node-n-successors predecessor-node) 1))
+    ;return fuction node
        successor-node)
-       
-      (error "wrond type of argument given")))
+     
+     (error "wrond type of argument given")))
 
 ;REMOVE OBSERVER
-;;TODO recalculate sort
+
 (define (remove-observer observer-node)
-  (if (function-node? observer-node)
-            ;remove node from successors
+  ;;check if function-node
+  (when (function-node? observer-node)
+                  
       (let ((predecessor     (car (node-predecessors observer-node))))
-        (set-node-successors!
-         predecessor
-         (remq observer-node (node-successors predecessor)))
-        (topological-sort predecessor))
+        ;;decrease successor node
+        (set-event-node-n-successors! predecessor (- (event-node-n-successors predecessor) 1))
+        ;;check if predecessors are new leaf nodes
+        (let ((new-leaf-nodes (filter (lambda (node) (eq? (event-node-n-successors node) 0)) (node-predecessors observer-node))))
+
+      ;;remove from all top lists in graph
+          (for-all-event-predecessors-remove predecessor observer-node new-leaf-nodes)
+          
+          (set-node-predecessors! observer-node '()))
+    ))
+  void)
+
         
        
       
-                                
-      (error "wrong type of argument")))
+ 
 
-;
+
 ;MAP  OBSERVER
 ;(gives back a new event)
 
 (define (event-map event new-function)
- ; (display event)
+  ;;check if event-node
   (if (event-node? event)
-      ;make 2 nodes 1 for the function and one to send the result to
+      ;make 2 nodes 1 for the function and one event node for the result
       (let* ((successor-node (make-function-node (list event) new-function))
-            (successor-of-successor-node (make-map-event (list successor-node))))
-        ;add function node to event successors
-      ;add node for result to successors of function node
-       (set-node-successors! event (cons successor-node (node-successors event)))
-        (set-node-successors! successor-node (cons successor-of-successor-node '()))
-        (topological-sort successor-of-successor-node)
-  ;      (newline)
-  ;      (display  successor-of-successor-node)
-  ;      (newline)
-       ; give back the node for the result
+            (successor-of-successor-node (make-event-with-predecessor (list successor-node))))
+        ;;increase successor number
+         (set-event-node-n-successors! event (+  (event-node-n-successors event) 1))
+        ;;update topological lst in graph
+      (for-all-event-predecessors-sort successor-of-successor-node successor-of-successor-node)
+        ;;return event-node
         successor-of-successor-node)
       (error "wrong type of argument given")))
 
 ;
 ;Execute a node
+;the node to execute
+;a branch to indicate for a or node in which branch it needs to look
+;start-event-node?: boolean to check if it is a start event or one lower in the graph
 ;
-(define (execute-node node )
+(define (execute-node node branch start-event-node?)
  
   (match node
-    [(event-node '() _ _ _ _  _)
-     void]
-    [(event-node predecessors _ _ _ _ _)
+  
+    [(event-node _ predecessors _ _ _ _ _)
+     ;check if it is a start node
+     #:when (not start-event-node?)
+     ;;if not take value of previous node and store it 
      (let
          ((value (node-value (car predecessors))))
-       
-       (if (eq? 'undefined value)
-           (set-node-value! node 'undefined)
-           (set-node-value! node value)))] 
-    ;for an event node just propagate the give result to its successors
+      
+      
+      (set-node-value! node value))
+     void]
+    [(start-jump-node _ condition jump-to)
+     ;check condition
+     (if (condition node)
+         ;if true return nothing
+         void
+         ;if false give back idx to where to jump
+         jump-to)]
+
+    [(end-jump-node _ direction)
+     ;;give back direction for or branch later
+     direction]
+  
     
-    ;for a function execute the function on the give value en send result to successors
-    [(function-node predecessors _ _ _  function _)
+    ;for a function execute the function on the give value and store result
+    [(function-node _ predecessors _ _  function)
+     
      (let ((value (node-value (car predecessors))))
        (if (eq? 'undefined value)
+           ;;in case a filter occurred
            (set-node-value! node 'undefined)
-           (set-node-value! node (function value))))]
-    [(or-node predecessors _ _ _ _ function _)
-     ;filter node first apply filter on value when #t then propagate result to successors
-     (let ((value-left (node-value (car predecessors)))
-           (value-right (node-value (cdar predecessors))))
-       (cond ((and (eq? 'undefined value-left)
-                   (eq? 'undefined value-right))
-              
-              (set-node-value! node 'undefined))
-             ((eq? 'undefined value-left)
-              
-              (set-node-value! node (function value-left))
-              (set-node-value! (car predecessors) 'undefined))
-             (else
-              
-              (set-node-value! node (function value-right))
-              (set-node-value! (cdar predecessors) 'undefined))))]
-                    
-    [(filter-node predecessors _ _ _ filter function _)
+           ;calculate new value and store
+           (set-node-value! node (function value))))
+     void]
+    [(or-node _ predecessors _ _  )
+     ;;check branch to see which value it needs to take
+      (let ((value (if (eq? 'L branch)
+                       ;left
+                        (node-value (car predecessors))
+                        ;right
+                        (node-value (cadr predecessors)))))
+              (set-node-value! node value))]
+            
+    
+    [(filter-node _ predecessors _ _  filter)
+     
      (let ((value (node-value (car predecessors))))
-       (if (eq? 'undefined value)
+       ;;if already been filtered out by previous filter or value is not #t by condition
+       (if (or (eq? 'undefined value) (not (filter value)))
            (set-node-value! node 'undefined)
-           (if (filter value)
-               (set-node-value! node (function value))
-               (set-node-value! node 'undefined))))]
+           ;;value allowed to pass
+           (set-node-value! node value)))
+     void]
+   
     [else void]   ))   
     
     ;
     ;PROPAGATE-EVENT
     ;
-;Send value to all successors of the node
-(define (propagate-event node)
-  (for-each (lambda (node)
-              (execute-node node))
-            (event-node-order node)))
-  ;(for-each (lambda (successor)
-   ;           
-    ;          (execute-node successor value))
-     ;       (node-successors node)
-      ;      ))
+;Send value to node in the list nodes
+;;nodes: topological sorted vector of nodes
+;;idx: idx in nodes vector
+;;start-node to know if start event-node or not
+;;branch for or node
+(define (propagate-event nodes idx start-node branch)
+  (when (> (vector-length nodes) idx)
+    (let ((current-node (vector-ref nodes idx)))
+      (display-id current-node)
+      ;;execute node
+      (let ((return-value
+             (execute-node
+              current-node
+              branch
+              (eq? current-node start-node))))
+        ;;return value is symbol -> jump-node-end occured so change branch value
+        (cond ((symbol? return-value)
+               (propagate-event nodes (+ idx 1) start-node return-value))
+              ;;return value is number -> jump-start-node occurred so changed idx to return-value
+              ;;for jump
+              ((number? return-value)
+               (propagate-event nodes return-value start-node branch))
+              (else
+               (propagate-event nodes (+ idx 1) start-node branch)))))))
+      
+
 ;
 ;CHANGE-EVENT
 ;
@@ -308,23 +392,28 @@
 (define (change-event event new-value)
   (if (event-node? event)
       (begin
+        ;;change value in start node
         (set-node-value! event new-value)
-        (propagate-event event))
+        ;;execute all other nodes
+        (propagate-event (event-node-order event) 0 event 'undefined))
       (error "Not given an event")))
 ;
 ;EVENT-OR
 ;
-
 ;makes node for when a
 (define (event-or event-1 event-2)
+  ;;check it it are event-nodes
   (if (and (event-node? event-1)
            (event-node? event-2))
-      (let ((successor-node (make-or-node  event-1 event-2 )))
+      ;;make or node and event-node
+      (let* ((or-part (make-or-node  event-1 event-2 ))
+             (event-part (make-event-with-predecessor (list or-part))))
+        ;increase succeessos
+        (set-event-node-n-successors! event-1 (+  (event-node-n-successors event-1) 1))
+        (set-event-node-n-successors! event-2 (+  (event-node-n-successors event-2) 1))
         ;add new node to successors of both events
-        (set-node-successors! event-1 (cons successor-node (node-successors event-1)))
-        (set-node-successors! event-2 (cons successor-node (node-successors event-2)))
-        (topological-sort successor-node)
-        successor-node)
+       ;return event-node
+        event-part)
       (error "wrond type of argument given")))
  
 ;
@@ -335,60 +424,83 @@
   (if (node? event)
       (begin
         ;make node with filter
-        (let* ((node-filter (make-filter-node (list event) filter-function))) 
-               ;add new node to successors
-          (set-node-successors! event (cons node-filter (node-successors event)))
-          (topological-sort node-filter)
+        ;make node with event
+        (let* ((node-filter (make-filter-node (list event) filter-function))
+               (node-event (make-event-with-predecessor (list node-filter))))
+          ;;increase successor number
+          (set-event-node-n-successors! event (+  (event-node-n-successors event) 1))
           ;give back filter node
-          node-filter))
+          node-event))
       (error "wrong type of argument given")))
 
 
 (define (display-id node)
      (match node
-       [(event-node _ _ _ _ _ _)
+       [(event-node test _ _ _ _ _ _)
         (display "event-node: ")
-        (display (event-node-test node))
+        (display test)
         (newline)]
-        [(filter-node _ _ _ _ _ _ _)
+        [(filter-node test _ _ _ _ )
         (display "filter-node: ")
-        (display (filter-node-test node))
+        (display test)
         (newline)]
-         [(or-node _ _ _ _ _ _ _ )
-        (display "or-node: ")
-        (display (or-node-test node))
-        (newline)]
-        [(function-node _ _ _ _ _ _)
+        ; [(or-node _ _ _ _ _ _ _ )
+        ;(display "or-node: ")
+      ;  (display (or-node-test node))
+        ;(newline)]
+        [(function-node test _ _ _ _ )
         (display "function-node: ")
-        (display (function-node-test node))
+        (display test)
         (newline)]
-       [else
-        (for-each display-id node)]))
+       [(start-jump-node counter _ _)
+         (display "start-jump-node ")
+        (display counter)
+        (newline)
+      ]
+       [(or-node t _ _ _)
+        (display "or-node: ")
+        (display t)
+        (newline)]
+       [(end-jump-node counter direction)
+        (display "end-jump-node ")
+        (display direction)
+        (display " :")
+                           
+        (display counter)
+        (newline)]))
 (define (display-order node)
-  (for-each
-   display-id
-   (event-node-order node)))
+  (for ([el (event-node-order node)])
+
+    (display-id el)))
+;  (for-each
+;   display-id
+;   (event-node-order node)))
 
 
-(provide event-or add-observer define + make-event lambda change-event display event-map event-filter > remove-observer display-order newline)
+(provide  add-observer define + make-event lambda change-event display event-map event-filter >   newline)
 
 
 
 
-(define z (make-event))
+(define z (make-event)) ;;1
+(define e1 (make-event)) ;;2
 ;(set-event-node-test! z 1) 
-(set-node-value! z 1)
-(define l (add-observer z (lambda (x) (display "z"))))
+;(set-node-value! z 1)
+(define l (add-observer z (lambda (x) (display "z")))) ;;F 3
 ;(set-function-node-test! l 2) 
-(define w (event-map z (lambda (x) 5)))
+(define w (event-map z (lambda (x) 5))) ;F 4 E 5
 ;(set-event-node-test! w 3) 
-(define m (event-map w (lambda (x) 2)))
+(define m (event-map w (lambda (x) 2))) ;F 6 E 7
 ;(set-event-node-test! m 4) 
 
-(define q (event-filter z (lambda (x) #f) (lambda (x) (display 'l))))
+(define q (event-filter z (lambda (x) (> x 4)))) ;Fi 8 E9; (lambda (x) (display 'l))))
+(define v (add-observer q (lambda (x) (display "y")))) ;F 10
+(define p2 (event-or z e1)) ;;JumpOR 11 ;;E 12
+(define o1 (add-observer p2 (lambda (x) (display "or")))) ;;OR
 ;(set-filter-node-test! q 5)
 ;(remove-observer l)
 (display "START")
   (display-order z)
+
 
 

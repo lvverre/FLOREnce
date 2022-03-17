@@ -1,5 +1,6 @@
 #lang br/quicklang
 (require "nodes.rkt")
+(provide (all-defined-out))
 (define (read-syntax path port)
   (define string-tree  (port->lines port))
 ;  (display string-tree)
@@ -72,38 +73,44 @@
             (add-node!  node)
             (set-node-visited! node permanent-mark)
             )
+          
+              
                
            ;;or node encountered
            ((or-node? node)
             (set-node-visited! node temporary-mark)
-            (let* ((predecessors (node-predecessors node)))
-              ;for left and right predecessors do:
-              (for-each
-               (lambda (predecessor  direction)
-                 ;;make jump node and add before other nodes to list
-                 ;jump-nodes contains index to spring to
-                 (let ((jm (make-start-jump-node #f #f)))
-                   (add-node!  jm)
-                   ;;add other nodes
-                   (loop predecessor)
-                   ;;get all end nodes for the conditions in the jump-node
-                   (let ((end-nodes (get-end-nodes predecessor)))
-                     ;;change the condition in the jump-node:  node is equal to one of the endnodes
+            (let* ((predecessors (node-predecessors node))
+                   (end-jmp-nodes 
+                    ;for left and right predecessors do:
+                    (map
+                     (lambda (predecessor  direction)
+                       ;;make jump node and add before other nodes to list
+                       ;jump-nodes contains index to spring to
+                       (let ((jm (make-start-jump-node #f #f)))
+                         (add-node!  jm)
+                         ;;add other nodes
+                         (loop predecessor)
+                         ;;get all end nodes for the conditions in the jump-node
+                         (let ((end-nodes (get-end-nodes predecessor)))
+                           ;;change the condition in the jump-node:  node is equal to one of the endnodes
                            (set-start-jump-node-condition!
                             jm
                             (lambda (node)
                               (for/or ([end-node end-nodes])
                                 (eq? node end-node)))))
-                   ;add end jump node to register with the direction of the branch
-                   
-                   (add-node! (make-end-jump-node direction))
-                   ;;set the correct index to jump to 
-                   (set-start-jump-node-jump-to! jm index )))
-                      
+                         ;add end jump node to register with the direction of the branch
+                         (let ((end-jmp-node (make-end-jump-node direction 0)))
+                           (add-node! end-jmp-node)
+                           ;;set the correct index to jump to 
+                           (set-start-jump-node-jump-to! jm index )
+                           end-jmp-node)))
+                     
                      predecessors
-                    
-                     (list 'L 'R))
-
+                     
+                     (list 'L 'R))))
+              (for-each (lambda (node)
+                          (set-end-jump-node-idx! node index))
+                        end-jmp-nodes)
               ;;add or node to top list
               (add-node! node)
               ;change mark to permanent
@@ -142,11 +149,18 @@
     ;;make vector and store in node
     (set-event-node-order! node (list->vector reverse-sorted))))
                       
+;copies the event-node order to the if-node
+(define (copy-order-to-if-node node)
+  (display node)
+  (let* ((then-node (end-if-then-node node))
+         (else-node (end-if-else-node node))
+         (start-node (car (node-predecessors then-node)))
+         (new-storage (make-vector (+ (graph-size node) 5) 0)))
+    (vector-copy! new-storage 0 (start-if-node-order start-node))
+    (vector-copy! new-storage 5 (event-node-order node))
+    (set-start-if-node-order! start-node new-storage)))
 
-
-
-                    
- ;;remove node from all predecessors nodes   
+;;remove node from all predecessors nodes   
 (define (for-all-event-predecessors-remove node to-remove-node new-leaf-nodes)
    (cond ((event-node? node)
           
@@ -170,18 +184,29 @@
                  (- (start-jump-node-jump-to node) 1)))
              ;;change to new order
              (set-event-node-order! node new-order))
-           ;;look further 
-           (for-each
-            (lambda (predecessor)
-              (for-all-event-predecessors-remove predecessor to-remove-node new-leaf-nodes))
-            (node-predecessors node))))
+           ;;look further
+           (cond ((event-node-of-if? node)
+                  (copy-order-to-if-node node))
+                 (else 
+                  (for-each
+                   (lambda (predecessor)
+                     (for-all-event-predecessors-remove predecessor to-remove-node new-leaf-nodes))
+                   (node-predecessors node))))))
          (else
           ;;look futher in tree
             (for-each
            (lambda (predecessor)
              (for-all-event-predecessors-remove predecessor to-remove-node new-leaf-nodes))
            (node-predecessors node)))))
-          
+
+
+(define (event-node-of-if? event-node)
+
+  (and (not (null? (node-predecessors event-node)))
+       (for/and ([predecessor (node-predecessors event-node)])
+         (display predecessor)
+         (multi-function-node? predecessor))))
+
 ;;give all event-nodes a sorted list
 (define (for-all-event-predecessors-sort node to-add-node)
   (cond ((event-node? node)
@@ -198,10 +223,13 @@
            ;;sort topological
            (topological-sort node)
            ;;go further down in tree
-           (for-each
-            (lambda (predecessor)
-              (for-all-event-predecessors-sort predecessor to-add-node))
-            (node-predecessors node))))
+           (cond ((event-node-of-if? node)
+                  (copy-order-to-if-node node))
+                 (else 
+                  (for-each
+                   (lambda (predecessor)
+                     (for-all-event-predecessors-sort predecessor to-add-node))
+                   (node-predecessors node))))))
         (else
          ;;go further down in tree
          (for-each
@@ -220,7 +248,7 @@
   (if (event-node? predecessor-node)
       
       ;make a new node
-     (let ((successor-node (make-function-node (list predecessor-node) new-function )))
+     (let ((successor-node (make-single-function-node (list predecessor-node) new-function )))
        ;;update all topological lists
        (for-all-event-predecessors-sort successor-node successor-node)
        ;;incease successor number
@@ -234,7 +262,7 @@
 
 (define (remove-observer observer-node)
   ;;check if function-node
-  (when (function-node? observer-node)
+  (when (single-function-node? observer-node)
                   
       (let ((predecessor     (car (node-predecessors observer-node))))
         ;;decrease successor node
@@ -262,7 +290,7 @@
   ;;check if event-node
   (if (event-node? event)
       ;make 2 nodes 1 for the function and one event node for the result
-      (let* ((successor-node (make-function-node (list event) new-function))
+      (let* ((successor-node (make-single-function-node (list event) new-function))
             (successor-of-successor-node (make-event-with-predecessor (list successor-node))))
         ;;increase successor number
          (set-event-node-n-successors! event (+  (event-node-n-successors event) 1))
@@ -300,13 +328,13 @@
          ;if false give back idx to where to jump
          jump-to)]
 
-    [(end-jump-node _ direction)
+    [(end-jump-node _ direction jump-to-idx)
      ;;give back direction for or branch later
-     direction]
+     (cons  jump-to-idx direction)]
   
     
     ;for a function execute the function on the give value and store result
-    [(function-node _ predecessors _ _  function)
+    [(single-function-node _ predecessors _ _  function)
      
      (let ((value (node-value (car predecessors))))
        (if (eq? 'undefined value)
@@ -356,12 +384,13 @@
               branch
               (eq? current-node start-node))))
         ;;return value is symbol -> jump-node-end occured so change branch value
-        (cond ((symbol? return-value)
-               (propagate-event nodes (+ idx 1) start-node return-value))
+        (cond 
               ;;return value is number -> jump-start-node occurred so changed idx to return-value
               ;;for jump
               ((number? return-value)
                (propagate-event nodes return-value start-node branch))
+              ((pair? return-value)
+                (propagate-event nodes (car return-value) start-node (cdr return-value)))
               (else
                (propagate-event nodes (+ idx 1) start-node branch)))))))
       
@@ -429,7 +458,7 @@
         ;(display "or-node: ")
       ;  (display (or-node-test node))
         ;(newline)]
-        [(function-node test _ _ _ _ )
+        [(single-function-node test _ _ _ _ )
         (display "function-node: ")
         (display test)
         (newline)]
@@ -442,7 +471,7 @@
         (display "or-node: ")
         (display t)
         (newline)]
-       [(end-jump-node counter direction)
+       [(end-jump-node counter direction _)
         (display "end-jump-node ")
         (display direction)
         (display " :")

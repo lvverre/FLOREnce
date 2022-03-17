@@ -3,23 +3,41 @@
   (prefix-in logic: "../logical_reactive_programming/language3.rkt")
   (prefix-in logic: "../logical_reactive_programming/nodes3.rkt")
   (prefix-in logic: "../logical_reactive_programming/token.rkt")
+  (prefix-in func: "../functiona_reactive_programming/nodes.rkt")
   (prefix-in func: "../functiona_reactive_programming/functional_reactive_language_3.rkt"))
- 
-(define-macro (if: ALPHA-NODE then: THEN-EXPRS ... else: ELSE-EXPRS ...)
-  #'(if (logic:alpha-node? ALPHA-NODE)
-        (let (()))
-        (error (format "Wrong argument, expected event-condition given ~a" ALPHA-NODE))))
 
-(define-macro (compile '( EXPR ... ))
-  #'(+ 1 z))
-(define-macro (l EXPRS ...)
-  #'(compile '( EXPRS ...)))
 
-(define-macro (m e '(+ 1 2))
-  #'(+ 1 e))
-(define-macro (id V)
-  #'(let* ((l (generate-temporaries #'(env)))
-           (n (car l)))
-      (lambda (n)
-        (m n 'V))))
 
+
+
+(define-macro (if:
+               (event-condition EVENT-NAME (ARGS ...) CONDITIONS ...)
+               then: THEN-EXPRS ...
+               else: ELSE-EXPRS ...)
+  #'(let* ((alpha-node (logic:event-condition->alpha-node
+                             (quote EVENT-NAME)
+                             '(ARGS ...)
+                             '(CONDITIONS ...)))
+           (start-if-node (func:make-start-if-node ))
+           (then-node (func:make-multi-function-node (list start-if-node) (lambda (ARGS ...) THEN-EXPRS ...)))
+           (else-node (func:make-multi-function-node (list start-if-node) (lambda (ARGS ...) ELSE-EXPRS ...)))
+           (left-end-if-node  (func:make-end-jump-node 'L ))
+           (right-end-if-node (func:make-end-jump-node 'R ))
+           (event-node (func:make-event-with-predecessor (list then-node else-node)))
+           (order (vector
+                   start-if-node
+                   then-node
+                   left-end-if-node
+                   else-node
+                   right-end-if-node
+                   event-node)))
+      (func:set-start-if-node-order! start-if-node order)
+      (logic:add-rule-to-root! alpha-node)
+      (logic:add-successor-to-node! alpha-node start-if-node)
+      event-node))
+
+
+(define test (if: (event-condition error (?y) (> ?y 3)) then: (display ?y) else: (display "sad")))
+(func:add-observer test (lambda (x) (display 'joepi)))
+      
+      

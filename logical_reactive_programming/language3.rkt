@@ -1,7 +1,9 @@
 #lang br/quicklang
+(provide (all-defined-out))
 
-
-(require "compile.rkt" "nodes3.rkt" "token.rkt" "unification.rkt" "e-environment.rkt" "window.rkt")
+(require "compile.rkt" "nodes3.rkt" "token.rkt" "unification.rkt" "e-environment.rkt" "window.rkt"
+          (prefix-in func: "../functiona_reactive_programming/nodes.rkt")
+          (prefix-in func: "../functiona_reactive_programming/functional_reactive_language_3.rkt"))
 
 (define (read-syntax path port)
   (define parse-tree (port->lines port))
@@ -27,19 +29,14 @@
 
 ;set the arguments of the event-condition in a list
 
-(define-macro (event-condition NAME (ARGS ...) CONDITIONS ...)
-  #'(let* ((formal-args (list (quote ARGS) ...))
-           (conditions (list (quote CONDITIONS) ...)))
-      (make-alpha-node
+(define (event-condition->alpha-node name args conditions)
+  (make-alpha-node
        
-      (quote NAME)
-       formal-args
+       name
+       args
        (map (lambda (condition)
                     (compile condition #t))
-            conditions))))
-      
-      
-
+            conditions)))
 
 
 
@@ -47,15 +44,22 @@
 ;MACRO to reform a rule in a rete network(DAG)
 
 ;TODO check the variabes in the event-conditions
-(define-macro (rule: NAME where: CONDITIONS ... then: BODY)
-  #'(let* ((alpha-nodes (list CONDITIONS ...))
-           ;take the first alpha-node
-           (first-alpha-node (car alpha-nodes))
-           ;gives back terminal node
-           (terminal-node (make-terminal-node 'BODY)))
-      ;add first alpha-node to the root
-      (add-rule-to-root! first-alpha-node)
-      ;if there a no more event conditions
+(define-macro (rule: NAME
+                     where:
+                     (event-condition EVENT-NAME (ARGS ...) CONDITIONS ...) ...
+                     then: BODY)
+  ;make alpha-nodes
+  #'(let* ((alpha-nodes (map event-condition->alpha-node
+                            '(EVENT-NAME ...)
+                            '((ARGS ...) ...)
+                            '((CONDITIONS ...) ...)))
+              ;take the first alpha-node
+              (first-alpha-node (car alpha-nodes))
+              ;gives back terminal node
+              (terminal-node (make-terminal-node 'BODY)))
+         ;add first alpha-node to the root
+         (add-rule-to-root! first-alpha-node)
+         ;if there a no more event conditions
       (cond ((null? (cdr alpha-nodes))
              ;then set the successor of the alphanode to the terminal node
              (add-successor-to-node! first-alpha-node terminal-node))
@@ -64,7 +68,7 @@
              (let ((last-join-node (combine-to-join-nodes first-alpha-node (cdr alpha-nodes) )))
                ;set the last join-node to the terminal-node
                (add-successor-to-node! last-join-node terminal-node)))))
-  )
+       )
 
 
 (define (make-terminal-node todo)
@@ -221,9 +225,24 @@
      (execute-terminal-node exprs name token #f)]
     [(empty-t-node)
      (display "END")]
-   
+    [(func:start-if-node _ o _)
+     (let* ((order-args ((beta-token-owner token)
     ))
 
+
+(define (execute-function-node node token)
+  (let* ((order-args (alpha-node-args (beta-token-owner token)))
+         (pm-env (beta-token-pm token))
+         (ordered-args (map (lambda (variable)
+                              (lookup-pm-var pm-env variable))
+                            order-args)))
+    (set-start-if-node-values! node ordered-args)
+    (if (token-add? token)
+        ;in case of add fact then it does remove
+        (propagate-event (start-if-node-order node) 1 node 'undefined)
+        ;in case of remove fact  then it does else-branch
+        (propagate-event (start-if-node-order node) 3 node 'undefined))))
+            
 (define (execute-terminal-node exprs name token purpose)
   (when (token-add? token)
     (display "add?")
@@ -270,10 +289,10 @@
 
 
 (rule: problem where:
-          (event-condition error-overheating (?temp) (> ?temp 76))
+          (event-condition error-overheating () )
           (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
       
-         then: (add: (fact: Problem-overheating ?temp ?cooling-liquid)))
+         then: (add: (fact: Problem-overheating  ?cooling-liquid)))
 ;(rule: 2 where:
  ;;         (event-condition error-overheating (?temp) (> ?temp 76))
   ;        (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
