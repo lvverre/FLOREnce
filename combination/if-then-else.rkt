@@ -38,5 +38,8 @@
 
 (define test (if: (event-condition error (?y) (> ?y 3)) then: (display "hoho") else: (display "sad")))
 (func:add-observer test (lambda (x) (display 'joepi)))
-      
+(sleep 40)
+(logic:add: (logic:fact: error-overheating ))
+(logic:add: (logic:fact: error-overheating2))
+
       

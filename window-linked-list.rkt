@@ -53,8 +53,8 @@
   (loop (window-head window)))
 
 
-(define (reset-window! window)
-  (let ((upperbound (+ (window-start-time window) sliding)))
+(define (reset-window! window interval)
+  (let ((upperbound (+ (window-start-time window) interval)))
     (let loop
       ((pm (window-head window)))
       (cond ((null? pm)

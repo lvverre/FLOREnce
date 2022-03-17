@@ -29,46 +29,83 @@
 
 ;make of event condition argument an alpha-node
 
-(define (event-condition->alpha-node name args conditions)
+(define (event-condition->alpha-node name args conditions #:interval [interval sliding] )
+  (display "make alpha no")
   (make-alpha-node
        
        name
        args
        (map (lambda (condition)
                     (compile condition #t))
-            conditions)))
+            conditions)
+       interval))
 
 
 
+;Store-intervals
 
 ;MACRO to reform a rule in a rete network(DAG)
 
 ;TODO check the variabes in the event-conditions
-(define-macro (rule: NAME
+
+(define-macro-cases rule:
+  [ (rule: NAME
                      where:
                      (event-condition EVENT-NAME (ARGS ...) CONDITIONS ...) ...
                      then: BODY)
+  
   ;make alpha-nodes
-  #'(let* ((alpha-nodes (map event-condition->alpha-node
-                            '(EVENT-NAME ...)
-                            '((ARGS ...) ...)
-                            '((CONDITIONS ...) ...)))
-              ;take the first alpha-node
-              (first-alpha-node (car alpha-nodes))
-              ;gives back terminal node
-              (terminal-node (make-terminal-node 'BODY)))
-         ;add first alpha-node to the root
-         (add-rule-to-root! first-alpha-node)
-         ;if there a no more event conditions
+  #'(make-graph-from-rule (map event-condition->alpha-node
+                               '(EVENT-NAME ...)
+                               '((ARGS ...) ...)
+                               '((CONDITIONS ...) ...))
+                          'BODY)]
+  [(rule: NAME
+                     where:
+                     (event-condition EVENT-NAME (ARGS ...) CONDITIONS ...) ...
+                     interval: SLIDING-INTERVAL
+                     then: BODY
+                     )
+   #'(if (number? SLIDING-INTERVAL)
+         (make-graph-from-rule (map (lambda (event-name args conditions)
+                                      (event-condition->alpha-node
+                                       event-name
+                                       args
+                                       conditions
+                                       #:interval SLIDING-INTERVAL))
+                                    '(EVENT-NAME ...)
+                                    '((ARGS ...) ...)
+                                    '((CONDITIONS ...) ...))
+                              
+                               'BODY
+                               #:interval SLIDING-INTERVAL)
+         (error "Rule: is not given correct number?"))])
+
+(define (make-graph-from-rule
+         alpha-nodes
+         body
+         #:interval [interval sliding]
+         #:size [size time-interval])
+
+  (let (;take the first alpha-node
+          (first-alpha-node (car alpha-nodes))
+          ;gives back terminal node
+          (terminal-node (make-terminal-node body)))
+      (display "hier")
+      ;add first alpha-node to the root
+      (add-rule-to-root! first-alpha-node)
+      (display "alpha-nodes")
+      (display alpha-nodes)
+      ;if there a no more event conditions
       (cond ((null? (cdr alpha-nodes))
              ;then set the successor of the alphanode to the terminal node
              (add-successor-to-node! first-alpha-node terminal-node))
             (else
              ;else convert the other alpha-lists to alpha-nodes and join-nodes
-             (let ((last-join-node (combine-to-join-nodes first-alpha-node (cdr alpha-nodes) )))
+             (let ((last-join-node (combine-to-join-nodes first-alpha-node (cdr alpha-nodes) interval)))
                ;set the last join-node to the terminal-node
                (add-successor-to-node! last-join-node terminal-node)))))
-       )
+  )
 
 
 
@@ -110,26 +147,29 @@
 
 ;makes the joins nodes and other alpha-nodes and link them together
 
-(define (combine-to-join-nodes left-node alpha-nodes)
-  (let* ((first-alpha-node (car alpha-nodes))
-         
-         (new-join-node  ;make join-node
-          (make-join-node
-           left-node
-           ;the new alpha-nodes is the right node
-           first-alpha-node
-           (alpha-node-conditions first-alpha-node))))
-    (set-alpha-node-conditions! first-alpha-node null)
+(define (combine-to-join-nodes left-node alpha-nodes interval)
+  (define (combine-loop left-node alpha-nodes)
+    (let* ((first-alpha-node (car alpha-nodes))
            
-  ;add new alpha to the root
-    (add-rule-to-root! first-alpha-node)
-    ;set the successor right
-    (add-successor-to-node! first-alpha-node new-join-node)
-    (add-successor-to-node! left-node new-join-node)
+           (new-join-node  ;make join-node
+            (make-join-node
+             left-node
+             ;the new alpha-nodes is the right node
+             first-alpha-node
+             (alpha-node-conditions first-alpha-node)
+             interval)))
+      (set-alpha-node-conditions! first-alpha-node null)
+      
+      ;add new alpha to the root
+      (add-rule-to-root! first-alpha-node)
+      ;set the successor right
+      (add-successor-to-node! first-alpha-node new-join-node)
+      (add-successor-to-node! left-node new-join-node)
     ;end step
-    (if (null? (cdr alpha-nodes))
-        new-join-node
-        (combine-to-join-nodes new-join-node (cdr alpha-nodes) ))))
+      (if (null? (cdr alpha-nodes))
+          new-join-node
+          (combine-loop new-join-node (cdr alpha-nodes) ))))
+  (combine-loop left-node alpha-nodes))
 
 
 
@@ -203,7 +243,7 @@
               
 (define (propagate-to node token)
   (match node
-    [(alpha-node partial-matches successors event-id formal-args conditions )
+    [(alpha-node partial-matches successors _  event-id formal-args conditions )
      (display (format "Alpha-node ~a\n" token))
      
      (when (equal? (alpha-token-id token) event-id)
@@ -216,7 +256,7 @@
            
                (update-pms-and-propagate token event-env node (get-time token))))))]
                
-    [(join-node _ _ left-predecessor  right-predecessor conditions)
+    [(join-node _ _ _ left-predecessor  right-predecessor conditions)
      (display (format "Join-node \n"))
      (if (eq? (beta-token-owner token) left-predecessor)
          (execute-join-node token (filter-node-partial-matches right-predecessor) node)
@@ -331,7 +371,7 @@
               (func:propagate-event (func:start-if-node-order successor-node) 3 node 'undefined))]
            [_ (reset-node successor-node)]))
        (filter-node-successors node))
-       (reset-window! (filter-node-partial-matches node))))
+       (reset-window! (filter-node-partial-matches node) (filter-node-interval node))))
   (get-lock-logic-graph)     
   (for-each 
    reset-node
@@ -353,6 +393,11 @@
           (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
       
          then: (add: (fact: Problem-overheating  ?cooling-liquid)))
+
+(rule: problem2 where:
+          (event-condition error-overheating2 () )
+          interval: 60
+          then: (add: (fact: problem-overheating  )))
 ;(rule: 2 where:
  ;;         (event-condition error-overheating (?temp) (> ?temp 76))
   ;        (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))

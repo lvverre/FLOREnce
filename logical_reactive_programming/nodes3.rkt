@@ -14,16 +14,16 @@
 
 ;FILTER NODE
 ;(alpha-nodes, join-nodes)
-(struct filter-node (partial-matches successors) #:transparent #:mutable)
+(struct filter-node (partial-matches successors interval) #:transparent #:mutable)
 
 (define (add-successor-to-node! node new-successor)
   (set-filter-node-successors! node (cons new-successor (filter-node-successors node))))
 
 ;ALPHA NODE
-(struct alpha-node filter-node ( event-id args (conditions #:mutable)) #:transparent)
+(struct alpha-node filter-node ( event-id args (conditions #:mutable) ) #:transparent)
 
-(define (make-alpha-node  event-id args conditions)
-  (alpha-node (make-window max-size-window ) '()  event-id args conditions))
+(define (make-alpha-node  event-id args conditions interval)
+  (alpha-node (make-window max-size-window ) '() interval  event-id args conditions ))
 
 
 ;TERMINAL NODE
@@ -38,7 +38,7 @@
 
 
 ;JOIN-NODE
-(struct join-node filter-node (left-activation  right-activation conditions) #:transparent #:mutable)
-(define (make-join-node left right condition); level)
-  (join-node (make-window max-size-window ) '()  left right condition))
+(struct join-node filter-node (left-activation  right-activation conditions ) #:transparent #:mutable)
+(define (make-join-node left right condition interval)
+  (join-node (make-window max-size-window ) '() interval  left right condition ))
 
