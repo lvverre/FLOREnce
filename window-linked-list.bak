@@ -1,0 +1,45 @@
+#lang racket
+(provide (all-defined-out))
+(require "e-environment.rkt" )
+
+
+(struct window (head tail size) #:mutable)
+(struct pm-part (previous next value) #:mutabe)
+
+(define (empty? window)
+  (= 0 (window-size window)))
+
+
+
+(define (add-pm! pm window)
+  (let ((new-part (pm-part
+               (window-tail window)
+               '()
+               pm)))
+    (set-window-size! window (+ (window-size window) 1))
+    (set-window-tail! window new-part)))
+
+
+(define (remove-pm! pm window)
+  (define (loop pm-part)
+    (when (not (null? pm-part))
+      (when (pm-contains-pm? pm (pm-part-value pm-part))
+        (if (null? (pm-part-previous pm-part))
+            (set-window-head! window (pm-part-next pm-part))
+            (set-pm-part-next! (pm-part-previous pm-part)
+                               (pm-part-next pm-part)))
+        (if (null? (pm-part-next pm-part))
+            (set-window-tail! window (pm-part-previous pm-part))
+            (set-pm-part-previous! (pm-part-next pm-part)
+                                   (pm-part-previous pm-part))))
+      (loop (pm-part-next pm-part))))
+  (loop (window-head window)))
+
+
+(define (for-all-pms function window)
+  (define (loop pm-part)
+    (when (not (null? pm-part))
+      (function (pm-part-value pm-part))
+      (loop (pm-part-next pm-part))))
+  (loop (window-head window)))
+ 

@@ -1,11 +1,9 @@
 #lang br/quicklang
 (provide (all-defined-out))
-(require "window.rkt")
+(require "../window-linked-list.rkt")
+(require "variables.rkt")
 
-;Size + time
-(define time (minutes: 2))
-(define max-size-window 100)
-(define size-window 5) 
+
 
 
 ;ROOT
@@ -25,7 +23,7 @@
 (struct alpha-node filter-node ( event-id args (conditions #:mutable)) #:transparent)
 
 (define (make-alpha-node  event-id args conditions)
-  (alpha-node (make-window size-window time) '()  event-id args conditions))
+  (alpha-node (make-window max-size-window ) '()  event-id args conditions))
 
 
 ;TERMINAL NODE
@@ -37,8 +35,10 @@
 
 
 
+
+
 ;JOIN-NODE
 (struct join-node filter-node (left-activation  right-activation conditions) #:transparent #:mutable)
 (define (make-join-node left right condition); level)
-  (join-node (make-window size-window time) '()  left right condition))
+  (join-node (make-window max-size-window ) '()  left right condition))
 

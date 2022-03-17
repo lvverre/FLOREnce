@@ -32,8 +32,9 @@
 
 
 
-(struct pm (env ) #:transparent)
-
+(struct pm (env time next previous) #:transparent #:mutable)
+(define (make-pm env time)
+  (pm env time '() '()))
 (define get-var car)
 (define get-val cdr)
 
@@ -114,7 +115,7 @@
 
 
 
-;
+
 
 
 

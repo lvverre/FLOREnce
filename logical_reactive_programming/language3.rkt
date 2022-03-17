@@ -1,9 +1,10 @@
 #lang br/quicklang
 (provide (all-defined-out))
 
-(require "compile.rkt" "nodes3.rkt" "token.rkt" "unification.rkt" "e-environment.rkt" "window.rkt"
+(require "compile.rkt" "nodes3.rkt" "token.rkt" "unification.rkt" "e-environment.rkt" "../window-linked-list.rkt"
           (prefix-in func: "../functiona_reactive_programming/nodes.rkt")
-          (prefix-in func: "../functiona_reactive_programming/functional_reactive_language_3.rkt"))
+          (prefix-in func: "../functiona_reactive_programming/functional_reactive_language_3.rkt")
+          "variables.rkt")
 
 (define (read-syntax path port)
   (define parse-tree (port->lines port))
@@ -18,16 +19,15 @@
        PARSE-TREE ))
 (provide (rename-out [stacker-module-begin #%module-begin]))
 
-;:=
-;assign an event condition to a variable
-;that will be used in the body
-;(define-macro (:= VARIABLE EVENT-CONDITION)
- ; #'(cons 'VARIABLE EVENT-CONDITION))
 
 
 
 
-;set the arguments of the event-condition in a list
+
+
+
+
+;make of event condition argument an alpha-node
 
 (define (event-condition->alpha-node name args conditions)
   (make-alpha-node
@@ -71,6 +71,11 @@
        )
 
 
+
+;;
+;;MAKE TERMINAL-NODES
+;;
+
 (define (make-terminal-node todo)
   (match todo
     [`(,op (fact: ,name ,args ...))
@@ -89,12 +94,7 @@
      empty-node]
     [_ (error (format "~a is not a valide expression for the then:-part of a rule" todo))])) 
      
-  
 
-
-
-;BODY
-;
 
 
 (define nothing empty-t-node)
@@ -137,16 +137,16 @@
 ;HULP
 ;
 
-(define (update-pms-and-propagate old-token new-pm-env node)
-  (let ((beta-token (beta-token (token-add? old-token) (pm new-pm-env) node)))
+(define (update-pms-and-propagate old-token new-pm-env node new-time)
+  (let* (
+         (beta-token (if (add-token? old-token)
+                         (make-beta-token-add (make-pm new-pm-env new-time) node)
+                         (make-beta-token-remove (make-pm new-pm-env new-time) node))))
   
-    (if (token-add? old-token)
-        (add-partial-match! (pm new-pm-env) (filter-node-partial-matches node))         
+    (if (add-token? old-token)
+        (add-partial-match! (make-pm new-pm-env new-time) (filter-node-partial-matches node) )         
         (remove-partial-matches! beta-token (filter-node-partial-matches node)))
-          
-    
     (for-each (lambda (successor)
-       
                 (propagate-to successor beta-token))
               (filter-node-successors node))))
 
@@ -166,24 +166,32 @@
 ;
 
 
+(define (combine-times time1 time2)
+  (cond ((and (number? time1)
+              (number? time2))
+         (min time1 time2))
+        (else
+         #f)))
 
 ;token comes from right
 (define (execute-join-node token partial-matches join-node)
   
   (let ((conditions (join-node-conditions join-node))
-        (token-pm  (beta-token-pm token)))
+        (token-pm  (beta-token-pm token))
+        (token-time (get-time token )))
     
     (for-all-partial-matches
      (lambda (store-pm)
        
-       (let ((combined-pm-env (combine-env-or-false (pm-env token-pm) (pm-env store-pm))))
+       (let ((combined-pm-env (combine-env-or-false (pm-env token-pm) (pm-env store-pm)))
+             (combined-time  (combine-times token-time (pm-time store-pm))))
          (when combined-pm-env
-           (when
+           (when 
                (for/and ([condition conditions])
                  
                  (execute condition  condition-global-env   combined-pm-env))
              (display "propagate")
-             (update-pms-and-propagate token combined-pm-env join-node)))))
+             (update-pms-and-propagate token combined-pm-env join-node combined-time)))))
      
      partial-matches)))
 
@@ -206,7 +214,7 @@
            (when (for/and ([condition conditions])
                    (execute condition  condition-global-env event-env))
            
-               (update-pms-and-propagate token event-env node)))))]
+               (update-pms-and-propagate token event-env node (get-time token))))))]
                
     [(join-node _ _ left-predecessor  right-predecessor conditions)
      (display (format "Join-node \n"))
@@ -225,26 +233,24 @@
      (execute-terminal-node exprs name token #f)]
     [(empty-t-node)
      (display "END")]
-    [(func:start-if-node _ o _)
-     (let* ((order-args ((beta-token-owner token)
+    [(func:start-if-node _ _)
+     (execute-function-node node token)]
     ))
 
-
+;in case of add fact then it does the then-branch
 (define (execute-function-node node token)
   (let* ((order-args (alpha-node-args (beta-token-owner token)))
-         (pm-env (beta-token-pm token))
+         (pm-env (pm-env (beta-token-pm token)))
          (ordered-args (map (lambda (variable)
                               (lookup-pm-var pm-env variable))
                             order-args)))
-    (set-start-if-node-values! node ordered-args)
-    (if (token-add? token)
-        ;in case of add fact then it does remove
-        (propagate-event (start-if-node-order node) 1 node 'undefined)
-        ;in case of remove fact  then it does else-branch
-        (propagate-event (start-if-node-order node) 3 node 'undefined))))
+    (func:set-start-if-node-values! node ordered-args)
+    ;in case of add fact then it does remove
+    (func:propagate-event (func:start-if-node-order node) 1 node 'undefined)
+    ))
             
 (define (execute-terminal-node exprs name token purpose)
-  (when (token-add? token)
+  (when (add-token? token)
     (display "add?")
     (let* ((args (map (lambda (expr)
                         (execute expr
@@ -252,7 +258,9 @@
                                  (pm-env (beta-token-pm token))
                                  ))
                       exprs))
-           (token (alpha-token purpose name args)))
+           (token (if purpose
+                      (make-alpha-token-add  name args)
+                      (make-alpha-token-remove name args))))
       
       (make-propagate-function token))))
   
@@ -264,29 +272,81 @@
 ;add-fact
 ;
 
-(define (propagate-alpha-node fact add?)
-  (cond ((alpha-token? fact)
-         (let ((fact fact))
-           (set-token-add?! fact add?)
-           (make-propagate-function fact)))
-        (else (error (format "~a is not a fact" fact)))))
+(define (propagate-alpha-node token )
+  (get-lock-logic-graph)
+  (make-propagate-function token)
+  (release-lock-logic-graph))
 ;propagates an event with name NAME and args -values trough the DAG
 (define-macro (add: FACT)
-  #'(propagate-alpha-node FACT #t))
-
+  #'(if (token? FACT)
+        (propagate-alpha-node
+         (make-alpha-token-add
+          (token-id FACT)
+          (token-args FACT)))
+        (error (format "~a is not a fact" FACT))))
 (define-macro (remove: FACT)
-  #'(propagate-alpha-node FACT #f))
+  #'(if (token? FACT)
+        (propagate-alpha-node
+         (make-alpha-token-remove
+          (token-id FACT)
+          (token-args FACT)))
+        (error (format "~a is not a fact" FACT))))
 
 (define-macro (fact: NAME ARGS ...)
-  #'(alpha-token null 'NAME '(ARGS ...)))
+  #'(token 'NAME '(ARGS ...)))
      
 
-      
 (define (make-propagate-function token)
     (for-each (lambda (node)
                 (propagate-to node token))
               root))
 
+;;
+;;LOCKING SYSTEM FOR THREADS USED IN WINDOW
+;;
+(define lock-logic-graph (make-semaphore 1))
+(define (get-lock-logic-graph)
+  (semaphore-wait lock-logic-graph))
+(define (release-lock-logic-graph)
+  (semaphore-post lock-logic-graph))
+
+
+;;
+;;RESET NODES
+;;
+ 
+(define (reset-logic-graph)
+  (define (reset-node node)
+    (when (filter-node? node)
+      ;for each successor do reset
+      (for-each
+       (lambda (successor-node)
+         (match successor-node
+           ;for each successor do reset except for if-node
+           ;if-node needs to check if the window is empty
+           ;EMPTY => activate else-branch
+           [(func:start-if-node values order)
+            (when (empty? (filter-node-partial-matches node))
+              (func:set-start-if-node-values! successor-node '())
+              (func:propagate-event (func:start-if-node-order successor-node) 3 node 'undefined))]
+           [_ (reset-node successor-node)]))
+       (filter-node-successors node))
+       (reset-window! (filter-node-partial-matches node))))
+  (get-lock-logic-graph)     
+  (for-each 
+   reset-node
+   root)
+  (semaphore-post lock-logic-graph))
+
+(thread
+ (lambda ()
+   (define (window-timing-loop)
+     (display "timer started")
+     (reset-logic-graph)
+     (display "reset")
+     (sleep 60)
+     (window-timing-loop)) 
+   (window-timing-loop)))
 
 (rule: problem where:
           (event-condition error-overheating () )

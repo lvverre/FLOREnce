@@ -1,0 +1,5 @@
+#lang racket
+;Size + time
+(define time-interval 60)
+(define sliding-window 30)
+(define max-size-window 100)

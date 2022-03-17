@@ -343,6 +343,15 @@
            ;calculate new value and store
            (set-node-value! node (function value))))
      void]
+    ;for a function with random number of arguments
+    [(multi-function-node _ predecessors _ _  function)
+     
+     (let ((values (start-if-node-values (car predecessors))))
+       ;calculate new value and store
+       (set-node-value! node (apply function values)))
+     void]
+    [(end-if-node direction)
+     (cons  5 direction)]
     [(or-node _ predecessors _ _  )
      ;;check branch to see which value it needs to take
       (let ((value (if (eq? 'L branch)
@@ -467,6 +476,15 @@
         (display counter)
         (newline)
       ]
+       [(multi-function-node test _ _ _ _)
+        (display "multi-function-nod")
+        (newline)]
+       [(end-if-node _)
+        (display "end-if")
+        (newline)]
+       [(start-if-node _ _)
+        (display "start-fi-node")
+        (newline)]
        [(or-node t _ _ _)
         (display "or-node: ")
         (display t)
