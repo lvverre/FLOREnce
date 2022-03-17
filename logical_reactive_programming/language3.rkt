@@ -4,7 +4,8 @@
 (require "compile.rkt" "nodes3.rkt" "token.rkt" "unification.rkt" "e-environment.rkt" "../window-linked-list.rkt"
           (prefix-in func: "../functiona_reactive_programming/nodes.rkt")
           (prefix-in func: "../functiona_reactive_programming/functional_reactive_language_3.rkt")
-          "variables.rkt")
+          "variables.rkt"
+          web-server/private/timer)
 
 (define (read-syntax path port)
   (define parse-tree (port->lines port))
@@ -79,6 +80,45 @@
                               
                                'BODY
                                #:interval SLIDING-INTERVAL)
+         (error "Rule: is not given correct number?"))]
+  [(rule: NAME
+                     where:
+                     (event-condition EVENT-NAME (ARGS ...) CONDITIONS ...) ...
+                     size: SLIDING-SIZE
+                     then: BODY
+                     )
+   #'(if (number? SLIDING-SIZE)
+         (make-graph-from-rule (map
+                                event-condition->alpha-node
+                                '(EVENT-NAME ...)
+                                '((ARGS ...) ...)
+                                '((CONDITIONS ...) ...))
+                              
+                               'BODY
+                               #:size SLIDING-SIZE)
+         (error "Rule: is not given correct number?"))]
+   [(rule: NAME
+                     where:
+                     (event-condition EVENT-NAME (ARGS ...) CONDITIONS ...) ...
+                     size: SLIDING-SIZE
+                     interval: SLIDING-INTERVAL
+                     then: BODY
+                     )
+   #'(if (number? SLIDING-SIZE)
+         (make-graph-from-rule (map
+                                (lambda (event-name args conditions)
+                                      (event-condition->alpha-node
+                                       event-name
+                                       args
+                                       conditions
+                                       #:interval SLIDING-INTERVAL))
+                                    '(EVENT-NAME ...)
+                                    '((ARGS ...) ...)
+                                    '((CONDITIONS ...) ...))
+                              
+                               'BODY
+                               #:size SLIDING-SIZE
+                               #:interval SLIDING-INTERVAL)
          (error "Rule: is not given correct number?"))])
 
 (define (make-graph-from-rule
@@ -87,15 +127,18 @@
          #:interval [interval sliding]
          #:size [size time-interval])
 
-  (let (;take the first alpha-node
+  (let* (;take the first alpha-node
           (first-alpha-node (car alpha-nodes))
           ;gives back terminal node
-          (terminal-node (make-terminal-node body)))
-      (display "hier")
+          (terminal-node (make-terminal-node body))
+          (time-manager (start-timer-manager)))
+    (letrec ((time-function  (lambda ()
+                               
+                               (reset-logic-graph alpha-nodes)
+                               (start-timer time-manager size time-function))))
+    
       ;add first alpha-node to the root
       (add-rule-to-root! first-alpha-node)
-      (display "alpha-nodes")
-      (display alpha-nodes)
       ;if there a no more event conditions
       (cond ((null? (cdr alpha-nodes))
              ;then set the successor of the alphanode to the terminal node
@@ -104,8 +147,9 @@
              ;else convert the other alpha-lists to alpha-nodes and join-nodes
              (let ((last-join-node (combine-to-join-nodes first-alpha-node (cdr alpha-nodes) interval)))
                ;set the last join-node to the terminal-node
-               (add-successor-to-node! last-join-node terminal-node)))))
-  )
+               (add-successor-to-node! last-join-node terminal-node))))
+      (start-timer time-manager size time-function))))
+  
 
 
 
@@ -354,8 +398,30 @@
 ;;
 ;;RESET NODES
 ;;
- 
-(define (reset-logic-graph)
+  
+(define (reset-logic-graph alpha-nodes)
+  (define (reset-node node)
+    (when (filter-node? node)
+      ;for each successor do reset
+      (for-each
+       (lambda (successor-node)
+         (match successor-node
+           ;for each successor do reset except for if-node
+           ;if-node needs to check if the window is empty
+           ;EMPTY => activate else-branch
+           [(func:start-if-node values order)
+            (when (empty? (filter-node-partial-matches node))
+              (func:set-start-if-node-values! successor-node '())
+              (func:propagate-event (func:start-if-node-order successor-node) 3 node 'undefined))]
+           [_ (reset-node successor-node)]))
+       (filter-node-successors node))
+       (reset-window! (filter-node-partial-matches node) (filter-node-interval node))))
+  (get-lock-logic-graph)     
+  (for-each 
+   reset-node
+   alpha-nodes)
+  (semaphore-post lock-logic-graph))
+#|(define (reset-logic-graph)
   (define (reset-node node)
     (when (filter-node? node)
       ;for each successor do reset
@@ -376,8 +442,8 @@
   (for-each 
    reset-node
    root)
-  (semaphore-post lock-logic-graph))
-
+  (semaphore-post lock-logic-graph))|#
+#|
 (thread
  (lambda ()
    (define (window-timing-loop)
@@ -386,7 +452,11 @@
      (display "reset")
      (sleep 60)
      (window-timing-loop)) 
-   (window-timing-loop)))
+   (window-timing-loop)))|#
+
+
+
+
 
 (rule: problem where:
           (event-condition error-overheating () )
@@ -396,7 +466,8 @@
 
 (rule: problem2 where:
           (event-condition error-overheating2 () )
-          interval: 60
+          size: 30
+          interval: 20
           then: (add: (fact: problem-overheating  )))
 ;(rule: 2 where:
  ;;         (event-condition error-overheating (?temp) (> ?temp 76))
