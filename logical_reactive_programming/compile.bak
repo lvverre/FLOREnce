@@ -67,6 +67,7 @@
     ((global-variable? expr)
      (global-var expr))
     (else
+     (display expr)
      (error (format "wrong expression: ~a" expr)))))
 
 

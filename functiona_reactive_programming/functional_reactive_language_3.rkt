@@ -508,7 +508,7 @@
 (provide  add-observer define + make-event lambda change-event display event-map event-filter >   newline)
 
 
-
+#|
 
 (define z (make-event)) ;;1
 (define e1 (make-event)) ;;2
@@ -528,7 +528,44 @@
 ;(set-filter-node-test! q 5)
 ;(remove-observer l)
 (display "START")
-  (display-order z)
+  (display-order z)|#
 
 
+(define terminal_1 (make-event))
+(define filter-drink (event-filter terminal_1 (lambda (order)
+                                                (assoc 'drink order))))
+(define filter-fries (event-filter terminal_1 (lambda (order)
+                                                (assoc 'fries order))))
+(define filter-burgers (event-filter terminal_1 (lambda (order)
+                                                  (assoc 'burger order))))
+ 
+(define fries-event (event-map
+                     filter-fries
+                   (lambda (order)
+                     (filter (lambda (element)
+                               (and (pair? element)
+                                    (equal? 'fries (car element))))
+                             order))))
+(define burgers-event (event-map
+                     filter-burgers
+                   (lambda (order)
+                     (filter (lambda (element)
+                               (and (pair? element)
+                                    (equal? 'burger (car element))))
+                             order))))
+(define drink-event
+  (event-map
+   filter-drink
+   (lambda (order)
+     (filter (lambda (element)
+               (and (pair? element)
+                    (equal? 'drink (car element))))
+             order))))
 
+(add-observer drink-event (lambda (order)
+                            (for-each (lambda (drink)
+                                        (printf (format "Drink: ~a size: ~a\n"
+                                                (cadr drink)
+                                                (caddr drink))))
+                                      order)))
+(change-event terminal_1 '((drink Fanta Big) (drink Cola Small)))

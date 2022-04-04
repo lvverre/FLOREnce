@@ -12,10 +12,14 @@
                              (list (cons '+ +) (cons '- -) (cons 'display display))))
 (define condition-global-env (map (lambda (x)
                                     x)
-                                  (list (cons '= =) (cons '>= >=) (cons '<= <=) (cons '> >) (cons '< <) (cons 'eq? eq?) (cons 'equal? equal?))))
+                                  (list (cons 'and (lambda el
+                                                     ( andmap (lambda (el) el) el))) (cons 'not (lambda (el)
+                                                                                     (not el)))(cons 'quote (lambda (el)
+                                                       (quote el))) (cons 'or (lambda opnds (ormap (lambda (el) el) opnds))) (cons '= =) (cons '>= >=) (cons '<= <=) (cons '> >) (cons '< <) (cons 'eq? eq?) (cons 'equal? equal?))))
 
 
 (define (lookup-global-var env var)
+
   (let ((val-env-pair (assoc var env)))
     (if val-env-pair
         (cdr val-env-pair)
@@ -42,11 +46,7 @@
 ;check if pm env correspond to other pm-env
 (define (pm-contains-pm? pm-contained pm-contains)
   ;taken envs
-     (newline)
-  (display pm-contained)
-  (newline)
-  (display pm-contains)
-  (newline)
+
      (let ((contained-pm-env (pm-env pm-contained))
            (contains-pm-env (pm-env pm-contains)))
        ;for every element in token env
@@ -55,7 +55,7 @@
                   (and (occurs? (get-var var-val-pair) contains-pm-env)
                        (equal? (lookup-pm-var contains-pm-env (get-var var-val-pair))
                                (get-val var-val-pair))))))
-         (display z)
+        
          z)
        ))
 
@@ -78,6 +78,7 @@
 (define empty-pm-env '())
 
 (define (ext-pm-env var val env)
+ 
   (if (occurs? var env)
       #f
       (cons  (cons var val) env)))

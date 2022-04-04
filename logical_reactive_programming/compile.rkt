@@ -30,8 +30,7 @@
 
 (define (global-variable? variable)
   (let ((variable-string (symbol->string variable)))
-     ;check for "?"
-     (not (string-contains? variable-string "?"))))
+    (not (string-contains? (substring variable-string 0 1) "?"))))
 
 
 ;COMPILE
@@ -51,6 +50,9 @@
      (const expr))
     ;check if it is a function application
     ((pair? expr)
+     (cond ((equal? 'quote (car expr))
+            (const (cadr expr)))
+           (else 
      ;compile operator
      ;compile operands
      (let ((operator (compile (car expr ) condition-part)); global-env condition-part))
@@ -58,7 +60,7 @@
                             (compile operand condition-part)); global-env condition-part))
                           (cdr expr))))
        
-       (fun-apl operator operands)))
+       (fun-apl operator operands)))))
     ;check if event-variable
     ((event-variable? expr)
      (event-var expr))
@@ -67,6 +69,7 @@
     ((global-variable? expr)
      (global-var expr))
     (else
+    
      (error (format "wrong expression: ~a" expr)))))
 
 
@@ -78,10 +81,13 @@
     [(event-var var) (lookup-pm-var event-env var)]
     [(global-var var) (lookup-global-var global-env var)]
     [(fun-apl operator operands)
+    
      (let ((op (execute operator global-env event-env))
            (opnds (map (lambda (operand)
                          (execute operand global-env event-env))
                        operands)))
+       (display expr)
+       (display opnds)
        (apply op opnds))]))
 
 

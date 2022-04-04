@@ -1,5 +1,5 @@
 #lang br/quicklang
-(require (only-in "e-environment.rkt" ext-event-env empty-event-env))
+(require (only-in "e-environment.rkt" ext-pm-env))
 (provide unify-args )
 
 
@@ -21,6 +21,7 @@
 
 (define (unify var val env)
   ;lookup value of variable
+  (display var)
   (let ((var-value (walk var env)))
 
     (cond
@@ -30,7 +31,7 @@
       ;symbol
       ;=> variable has not yet been added so add variable
       ;with correct value
-      ((symbol? var-value) (ext-event-env var-value val env))
+      ((symbol? var-value) (ext-pm-env var-value val env))
       ;is a pair
       ;unify arguments
       ((and
@@ -48,25 +49,28 @@
       ;no unification
       (else #f))))
 
+
 (define (unify-args args variables env)
-  (let loop ((to-do-args args)
-             (to-do-variables variables))
-    (cond ((and
-            env
-            (not (null? to-do-args))
-            (not (null? to-do-variables)))
-        
-           (loop
-            (unify (car to-do-variables) (car to-do-args) env)
-            (cdr to-do-args)
-            (cdr to-do-variables)))
-          ((or (and (null? to-do-args) (not (null? to-do-variables)))
-               (and (not (null? to-do-args)) (null? to-do-variables)))
-           
-           #f)
-          (else 
-           
-           env))))
+  ;check if there are the same number of variables as arguments
+  (if (eq? (length args) (length variables))
+      (let loop ((env env)
+                 (to-do-args args)
+                 (to-do-variables variables))
+       (cond
+         ;;environment cannot be unified
+         ((not env)
+          #f)
+         ;;environment could be unified
+         ((null? to-do-args)
+          env)
+        (else
+         ;;still values left so unify  
+         (loop
+          (unify (car to-do-variables) (car to-do-args) env)
+          (cdr to-do-args)
+          (cdr to-do-variables)))))
+      #f))
+         
         
   
 

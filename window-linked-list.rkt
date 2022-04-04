@@ -19,9 +19,11 @@
 
 
 (define (add-partial-match! pm window)
+ 
   (if (empty? window)
       (set-window-head! window pm)
       (set-pm-next! (window-tail window) pm))
+ 
     (set-window-tail! window pm)
     (set-window-size! window (- (window-size window) 1)))
 
@@ -54,6 +56,7 @@
 
 
 (define (reset-window! window interval)
+  (display "reset")
   (let ((upperbound (+ (window-start-time window) interval)))
     (let loop
       ((pm (window-head window)))

@@ -21,6 +21,7 @@
 
 (define (unify var val env)
   ;lookup value of variable
+
   (let ((var-value (walk var env)))
 
     (cond
@@ -30,7 +31,7 @@
       ;symbol
       ;=> variable has not yet been added so add variable
       ;with correct value
-      ((symbol? var-value) (ext-pm-env var-value val env))
+      ((symbol? var-value)(ext-pm-env var-value val env))
       ;is a pair
       ;unify arguments
       ((and

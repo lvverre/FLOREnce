@@ -5,7 +5,8 @@
           (prefix-in func: "../functiona_reactive_programming/nodes.rkt")
           (prefix-in func: "../functiona_reactive_programming/functional_reactive_language_3.rkt")
           "variables.rkt"
-          web-server/private/timer)
+          web-server/private/timer
+          )
 
 (define (read-syntax path port)
   (define parse-tree (port->lines port))
@@ -30,8 +31,8 @@
 
 ;make of event condition argument an alpha-node
 
-(define (event-condition->alpha-node name args conditions #:interval [interval sliding] )
-  (display "make alpha no")
+(define (event-condition->alpha-node name args conditions interval )
+ 
   (make-alpha-node
        
        name
@@ -46,14 +47,47 @@
 ;Store-intervals
 
 ;MACRO to reform a rule in a rete network(DAG)
-
+(define (check-for-options options)
+  (pattern-case options
+                [() #'(sliding time-interval)]
+                [(window: SIZE) #'(sliding SIZE)]
+                [(sliding: SIZE) #'(SIZE time-interval)]
+                [(window: WINDOW-SIZE sliding: SLIDING-SIZE) #'(SLIDING-SIZE WINDOW-SIZE)]))
 ;TODO check the variabes in the event-conditions
-
-(define-macro-cases rule:
+(define-macro
+  (rule: NAME
+                     where:
+                     (event-condition EVENT-NAME (ARGS ...) CONDITIONS ...) ...
+                     then: BODY
+                     OPTIONS ...)
+  (with-pattern ([( SLIDING WINDOW)
+                ;  #'(check-for-options #'(OPTIONS ...))])
+                  (pattern-case #'(OPTIONS ...)
+                [() #'(sliding time-interval)]
+                [(window: SIZE) #'(sliding SIZE)]
+                [(sliding: SIZE) #'(SIZE time-interval)]
+                [(window: WINDOW-SIZE sliding: SLIDING-SIZE) #'(SLIDING-SIZE WINDOW-SIZE)])])              
+    #'(make-graph-from-rule (map (lambda (event-name args conditions)
+                                 (event-condition->alpha-node
+                                  event-name
+                                  args
+                                  conditions
+                                  SLIDING))
+                               '(EVENT-NAME ...)
+                               '((ARGS ...) ...)
+                               '((CONDITIONS ...) ...))
+                          
+                          'BODY
+                           SLIDING
+                           WINDOW)))
+    
+    
+#|(define-macro-cases rule:
   [ (rule: NAME
                      where:
                      (event-condition EVENT-NAME (ARGS ...) CONDITIONS ...) ...
-                     then: BODY)
+                     then: BODY
+                     OPTIONS ...)
   
   ;make alpha-nodes
   #'(make-graph-from-rule (map event-condition->alpha-node
@@ -119,13 +153,14 @@
                                'BODY
                                #:size SLIDING-SIZE
                                #:interval SLIDING-INTERVAL)
-         (error "Rule: is not given correct number?"))])
+         (error "Rule: is not given correct number?"))])|#
 
 (define (make-graph-from-rule
          alpha-nodes
          body
-         #:interval [interval sliding]
-         #:size [size time-interval])
+         
+        interval 
+         size )
 
   (let* (;take the first alpha-node
           (first-alpha-node (car alpha-nodes))
@@ -274,7 +309,7 @@
                (for/and ([condition conditions])
                  
                  (execute condition  condition-global-env   combined-pm-env))
-             (display "propagate")
+           ;  (display "propagate")
              (update-pms-and-propagate token combined-pm-env join-node combined-time)))))
      
      partial-matches)))
@@ -288,11 +323,12 @@
 (define (propagate-to node token)
   (match node
     [(alpha-node partial-matches successors _  event-id formal-args conditions )
-     (display (format "Alpha-node ~a\n" token))
+     (printf (format "Alpha-node \n" ))
      
      (when (equal? (alpha-token-id token) event-id)
        
        (let ((event-env (unify-args (alpha-token-args token) formal-args empty-pm-env)))
+        
          (when event-env
            
            (when (for/and ([condition conditions])
@@ -301,18 +337,18 @@
                (update-pms-and-propagate token event-env node (get-time token))))))]
                
     [(join-node _ _ _ left-predecessor  right-predecessor conditions)
-     (display (format "Join-node \n"))
+     (printf (format "Join-node \n"))
      (if (eq? (beta-token-owner token) left-predecessor)
          (execute-join-node token (filter-node-partial-matches right-predecessor) node)
          (execute-join-node token (filter-node-partial-matches left-predecessor) node))]
 
 
     [(emit-t-node name exprs)
-     (display (format "Emit node \n"))
+     (printf (format "Emit node \n"))
      (execute-terminal-node exprs name token #t)
      ]
     [(retract-t-node name exprs)
-     (display (format "retract node \n"))
+     (printf (format "retract node \n"))
      
      (execute-terminal-node exprs name token #f)]
     [(empty-t-node)
@@ -321,9 +357,16 @@
      (execute-function-node node token)]
     ))
 
+(define (get-args node)
+  (cond ((alpha-node? node)
+         (alpha-node-args node))
+        (else
+         (append (get-args (join-node-left-activation node))
+                 (get-args (join-node-right-activation node))))))
+
 ;in case of add fact then it does the then-branch
 (define (execute-function-node node token)
-  (let* ((order-args (alpha-node-args (beta-token-owner token)))
+  (let* ((order-args (get-args (beta-token-owner token)))
          (pm-env (pm-env (beta-token-pm token)))
          (ordered-args (map (lambda (variable)
                               (lookup-pm-var pm-env variable))
@@ -357,6 +400,7 @@
 ;
 
 (define (propagate-alpha-node token )
+  
   (get-lock-logic-graph)
   (make-propagate-function token)
   (release-lock-logic-graph))
@@ -458,7 +502,7 @@
 
 
 
-(rule: problem where:
+#|(rule: problem where:
           (event-condition error-overheating () )
           (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
       
@@ -466,9 +510,10 @@
 
 (rule: problem2 where:
           (event-condition error-overheating2 () )
-          size: 30
-          interval: 20
-          then: (add: (fact: problem-overheating  )))
+          
+          then: (add: (fact: problem-overheating  ))
+          window: 30
+          sliding: 20)|#
 ;(rule: 2 where:
  ;;         (event-condition error-overheating (?temp) (> ?temp 76))
   ;        (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
