@@ -1,13 +1,16 @@
 #lang br/quicklang
-(require "nodes.rkt")
+(require "nodes.rkt"  "defmac.rkt" )
 (provide (all-defined-out))
-(define (read-syntax path port)
-  (define string-tree  (port->lines port))
+
+
+#|(define (read-syntax path port)
+  (define string-tree  (read port))
 ;  (display string-tree)
 ;  (define parse-tree (quote string-tree))
   ;(display string-tree)
   (define parse-tree (format-datums '~a string-tree))
   (define module-datum `(module functionalRE3-mod "functional_reactive_language_3.rkt"
+                          
                           ,@parse-tree))
 ;  (display module-datum)
   (datum->syntax #f module-datum))
@@ -17,7 +20,7 @@
   #'(#%module-begin
      (begin 
         PARSE-TREE ...)))
-(provide (rename-out [functionalRE3-module-begin #%module-begin]))
+(provide (rename-out [functionalRE3-module-begin #%module-begin]))|#
 
 
 
@@ -242,8 +245,9 @@
 
 
 ;ADD-observer
-(define (add-observer predecessor-node new-function)
-
+(defmac (add-observer predecessor-node new-function)
+  #:keywords add-observer
+  #:captures events
   ;see if it is an event
   (if (event-node? predecessor-node)
       
@@ -286,7 +290,9 @@
 ;MAP  OBSERVER
 ;(gives back a new event)
 
-(define (event-map event new-function)
+(defmac (event-map event new-function)
+  #:keywords event-map
+  #:captures events
   ;;check if event-node
   (if (event-node? event)
       ;make 2 nodes 1 for the function and one event node for the result
@@ -385,7 +391,7 @@
 (define (propagate-event nodes idx start-node branch)
   (when (> (vector-length nodes) idx)
     (let ((current-node (vector-ref nodes idx)))
-      (display-id current-node)
+      
       ;;execute node
       (let ((return-value
              (execute-node
@@ -408,19 +414,27 @@
 ;CHANGE-EVENT
 ;
 ;propagate value
-(define (change-event event new-value)
-  (if (event-node? event)
-      (begin
-        ;;change value in start node
-        (set-node-value! event new-value)
-        ;;execute all other nodes
-        (propagate-event (event-node-order event) 0 event 'undefined))
+(define (start-propagation event new-value)
+  (display event)
+  (display new-value)
+  (display (event-node-order event))
+  (cond ((event-node? event)
+         (begin
+           ;;change value in start node
+           (set-node-value! event new-value)
+           ;;execute all other nodes
+           (propagate-event (event-node-order event) 0 event 'undefined)))
+        ((start-if-node? event)
+         (set-start-if-node-values! node new-value)
+         (propagate-event (start-if-node-order node) 1 node 'undefined))
       (error "Not given an event")))
 ;
 ;EVENT-OR
 ;
 ;makes node for when a
-(define (event-or event-1 event-2)
+(defmac (event-or event-1 event-2)
+  #:keywords event-or
+  #:captures events
   ;;check it it are event-nodes
   (if (and (event-node? event-1)
            (event-node? event-2))
@@ -439,7 +453,9 @@
 ;EVENT-AND
 ;
 
-(define (event-filter event filter-function)
+(defmac (event-filter event filter-function)
+  #:keywords event-filter
+  #:captures events
   (if (node? event)
       (begin
         ;make node with filter
@@ -452,60 +468,73 @@
           node-event))
       (error "wrong type of argument given")))
 
+(defmac (fire event-node value)
+  #:keywords fire
+  #:captures function-thd 
+  (thread-send function-thd (message 'event (cons event-node value))))
 
-(define (display-id node)
-     (match node
-       [(event-node test _ _ _ _ _ _)
-        (display "event-node: ")
-        (display test)
-        (newline)]
-        [(filter-node test _ _ _ _ )
-        (display "filter-node: ")
-        (display test)
-        (newline)]
-        ; [(or-node _ _ _ _ _ _ _ )
-        ;(display "or-node: ")
-      ;  (display (or-node-test node))
-        ;(newline)]
-        [(single-function-node test _ _ _ _ )
-        (display "function-node: ")
-        (display test)
-        (newline)]
-       [(start-jump-node counter _ _)
-         (display "start-jump-node ")
-        (display counter)
-        (newline)
-      ]
-       [(multi-function-node test _ _ _ _)
-        (display "multi-function-nod")
-        (newline)]
-       [(end-if-node _)
-        (display "end-if")
-        (newline)]
-       [(start-if-node _ _)
-        (display "start-fi-node")
-        (newline)]
-       [(or-node t _ _ _)
-        (display "or-node: ")
-        (display t)
-        (newline)]
-       [(end-jump-node counter direction _)
-        (display "end-jump-node ")
-        (display direction)
-        (display " :")
-                           
-        (display counter)
-        (newline)]))
-(define (display-order node)
-  (for ([el (event-node-order node)])
+(struct message (tag info))
 
-    (display-id el)))
-;  (for-each
-;   display-id
-;   (event-node-order node)))
+(define (start-set! channel function)
+  (function)
+  (channel-put channel 'start))
+
+(defmac (e-set! var value)
+  #:keywords set!
+  #:captures function-thd inside-turn
+  (let
+      ((channel (make-channel)))
+    (cond((not inside-turn)
+    
+          (thread-send  function-thd (message 'set! (cons channel (lambda ()
+                                                                    (set! var value)))))
+          (sync channel))
+         (else
+          (set! var value)))))
+ ;   (thread-wait (function-thd))
+ ;   (thread-resume (current-thread))))
+
+(defmac (make-functional-event-loop)
+  #:keywords make-functional-event-loop
+  #:captures inside-turn
+  (parameterize ([inside-turn #t])
+  (thread
+   (lambda ()
+     (let loop
+       ((event (thread-receive)))
+       (match event
+         [(message 'event (cons node value))
+          
+            (start-propagation node
+                             value)]
+         [(message 'set! (cons channel function))
+          (start-set! channel function)])
+       (loop (thread-receive)))))))
+
+(defmac (program exp ...)
+  #:keywords program
+  #:captures function-thd inside-turn
+  (begin (define inside-turn (make-parameter #f))
+         (let (               (function-thd (make-functional-event-loop)))
+           (begin exp ...))))
+;(define function-thd (make-parameter (make-functional-event-loop)))
 
 
-(provide  add-observer define + make-event lambda change-event display event-map event-filter >   newline)
+#|(define (functional-event-loop mailbox)
+  (lambda ()
+    (let ((semaphore-mailbox (mailbox-semaphore mailbox))
+          (queue (mailbox-queue mailbox)))
+    (let loop
+      ()
+      (semaphore-wait semaphore-mailbox)
+      (let 
+          ((event (serve-event! mailbox)))
+        (cond ((not event)
+              
+               (suspend-thread (current-t)))))))))
+
+
+(provide  add-observer define + make-event lambda fire display event-map event-filter >   newline)|#
 
 
 #|
@@ -531,41 +560,7 @@
   (display-order z)|#
 
 
-(define terminal_1 (make-event))
-(define filter-drink (event-filter terminal_1 (lambda (order)
-                                                (assoc 'drink order))))
-(define filter-fries (event-filter terminal_1 (lambda (order)
-                                                (assoc 'fries order))))
-(define filter-burgers (event-filter terminal_1 (lambda (order)
-                                                  (assoc 'burger order))))
- 
-(define fries-event (event-map
-                     filter-fries
-                   (lambda (order)
-                     (filter (lambda (element)
-                               (and (pair? element)
-                                    (equal? 'fries (car element))))
-                             order))))
-(define burgers-event (event-map
-                     filter-burgers
-                   (lambda (order)
-                     (filter (lambda (element)
-                               (and (pair? element)
-                                    (equal? 'burger (car element))))
-                             order))))
-(define drink-event
-  (event-map
-   filter-drink
-   (lambda (order)
-     (filter (lambda (element)
-               (and (pair? element)
-                    (equal? 'drink (car element))))
-             order))))
-
-(add-observer drink-event (lambda (order)
-                            (for-each (lambda (drink)
-                                        (printf (format "Drink: ~a size: ~a\n"
-                                                (cadr drink)
-                                                (caddr drink))))
-                                      order)))
-(change-event terminal_1 '((drink Fanta Big) (drink Cola Small)))
+(program
+ (define p 4)
+ (define z (make-event))
+ (add-observer z (lambda (x) (e-set! p 9) (display p))) (fire z 3))

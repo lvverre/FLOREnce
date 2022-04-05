@@ -7,9 +7,12 @@
 
 
 ;ROOT
-(define root '())
-(define (add-rule-to-root! alpha-node)
-  (set! root (cons alpha-node root)))
+(struct root (head) #:mutable)
+(define (make-root) (root '()))
+(define (add-rule-to-root! root alpha-node)
+  (display 'root)
+  (set-root-head! root (cons alpha-node (root-head root))))
+  
 
 
 ;FILTER NODE

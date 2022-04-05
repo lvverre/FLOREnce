@@ -1,0 +1,22 @@
+
+#lang br/quicklang
+(require "nodes.rkt")
+(provide (all-defined-out))
+(define (read-syntax path port)
+  (define string-tree  (read port))
+;  (display string-tree)
+;  (define parse-tree (quote string-tree))
+  ;(display string-tree)
+  (define parse-tree (format-datums '~a string-tree))
+  (define module-datum `(module functionalRE3-mod "functional_reactive_language_3.rkt"
+                          (parameterize ([tree 'symbol-tree])
+                           ,@parse-tree)))
+;  (display module-datum)
+  (datum->syntax #f module-datum))
+(provide read-syntax)
+
+(define-macro (functionalRE3-module-begin PARSE-TREE ...)
+  #'(#%module-begin
+     (begin 
+        PARSE-TREE ...)))
+(provide (rename-out [functionalRE3-module-begin #%module-begin]))

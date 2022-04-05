@@ -1,7 +1,7 @@
 #lang br/quicklang
 (provide (all-defined-out))
 
-(require "compile.rkt" "nodes3.rkt" "token.rkt" "unification.rkt" "e-environment.rkt" "../window-linked-list.rkt"
+(require "defmac.rkt""compile.rkt" "nodes3.rkt" "token.rkt" "unification.rkt" "e-environment.rkt" "../window-linked-list.rkt"
           (prefix-in func: "../functiona_reactive_programming/nodes.rkt")
           (prefix-in func: "../functiona_reactive_programming/functional_reactive_language_3.rkt")
           "variables.rkt"
@@ -54,113 +54,46 @@
                 [(sliding: SIZE) #'(SIZE time-interval)]
                 [(window: WINDOW-SIZE sliding: SLIDING-SIZE) #'(SLIDING-SIZE WINDOW-SIZE)]))
 ;TODO check the variabes in the event-conditions
-(define-macro
+(defmac 
   (rule: NAME
                      where:
-                     (event-condition EVENT-NAME (ARGS ...) CONDITIONS ...) ...
-                     then: BODY
-                     OPTIONS ...)
-  (with-pattern ([( SLIDING WINDOW)
+                     (EVENT-NAME (ARGS ...) CONDITIONS ...) ...
+                     then: BODY)
+  #:keywords rule: where: then:
+  #:captures root
+                    ; OPTIONS ...)
+  ;(with-pattern ([( SLIDING WINDOW) #'(sliding time-interval)]
                 ;  #'(check-for-options #'(OPTIONS ...))])
-                  (pattern-case #'(OPTIONS ...)
-                [() #'(sliding time-interval)]
-                [(window: SIZE) #'(sliding SIZE)]
-                [(sliding: SIZE) #'(SIZE time-interval)]
-                [(window: WINDOW-SIZE sliding: SLIDING-SIZE) #'(SLIDING-SIZE WINDOW-SIZE)])])              
-    #'(make-graph-from-rule (map (lambda (event-name args conditions)
+               ;   (pattern-case #'(OPTIONS ...)
+               ; [() #'(sliding time-interval)]
+               ; [(window: SIZE) #'(sliding SIZE)]
+               ; [(sliding: SIZE) #'(SIZE time-interval)]
+               ; [(window: WINDOW-SIZE sliding: SLIDING-SIZE) #'(SLIDING-SIZE WINDOW-SIZE)])])              
+    (make-graph-from-rule (map (lambda (event-name args conditions)
                                  (event-condition->alpha-node
                                   event-name
                                   args
                                   conditions
-                                  SLIDING))
+                                  sliding))
                                '(EVENT-NAME ...)
                                '((ARGS ...) ...)
                                '((CONDITIONS ...) ...))
                           
                           'BODY
-                           SLIDING
-                           WINDOW)))
+                           sliding
+                           time-interval
+                           root)););)
     
     
-#|(define-macro-cases rule:
-  [ (rule: NAME
-                     where:
-                     (event-condition EVENT-NAME (ARGS ...) CONDITIONS ...) ...
-                     then: BODY
-                     OPTIONS ...)
-  
-  ;make alpha-nodes
-  #'(make-graph-from-rule (map event-condition->alpha-node
-                               '(EVENT-NAME ...)
-                               '((ARGS ...) ...)
-                               '((CONDITIONS ...) ...))
-                          'BODY)]
-  [(rule: NAME
-                     where:
-                     (event-condition EVENT-NAME (ARGS ...) CONDITIONS ...) ...
-                     interval: SLIDING-INTERVAL
-                     then: BODY
-                     )
-   #'(if (number? SLIDING-INTERVAL)
-         (make-graph-from-rule (map (lambda (event-name args conditions)
-                                      (event-condition->alpha-node
-                                       event-name
-                                       args
-                                       conditions
-                                       #:interval SLIDING-INTERVAL))
-                                    '(EVENT-NAME ...)
-                                    '((ARGS ...) ...)
-                                    '((CONDITIONS ...) ...))
-                              
-                               'BODY
-                               #:interval SLIDING-INTERVAL)
-         (error "Rule: is not given correct number?"))]
-  [(rule: NAME
-                     where:
-                     (event-condition EVENT-NAME (ARGS ...) CONDITIONS ...) ...
-                     size: SLIDING-SIZE
-                     then: BODY
-                     )
-   #'(if (number? SLIDING-SIZE)
-         (make-graph-from-rule (map
-                                event-condition->alpha-node
-                                '(EVENT-NAME ...)
-                                '((ARGS ...) ...)
-                                '((CONDITIONS ...) ...))
-                              
-                               'BODY
-                               #:size SLIDING-SIZE)
-         (error "Rule: is not given correct number?"))]
-   [(rule: NAME
-                     where:
-                     (event-condition EVENT-NAME (ARGS ...) CONDITIONS ...) ...
-                     size: SLIDING-SIZE
-                     interval: SLIDING-INTERVAL
-                     then: BODY
-                     )
-   #'(if (number? SLIDING-SIZE)
-         (make-graph-from-rule (map
-                                (lambda (event-name args conditions)
-                                      (event-condition->alpha-node
-                                       event-name
-                                       args
-                                       conditions
-                                       #:interval SLIDING-INTERVAL))
-                                    '(EVENT-NAME ...)
-                                    '((ARGS ...) ...)
-                                    '((CONDITIONS ...) ...))
-                              
-                               'BODY
-                               #:size SLIDING-SIZE
-                               #:interval SLIDING-INTERVAL)
-         (error "Rule: is not given correct number?"))])|#
+
 
 (define (make-graph-from-rule
          alpha-nodes
          body
          
         interval 
-         size )
+         size
+         root)
 
   (let* (;take the first alpha-node
           (first-alpha-node (car alpha-nodes))
@@ -169,18 +102,18 @@
           (time-manager (start-timer-manager)))
     (letrec ((time-function  (lambda ()
                                
-                               (reset-logic-graph alpha-nodes)
+                               (reset-logic-graph  alpha-nodes)
                                (start-timer time-manager size time-function))))
     
       ;add first alpha-node to the root
-      (add-rule-to-root! first-alpha-node)
+      (add-rule-to-root! root first-alpha-node)
       ;if there a no more event conditions
       (cond ((null? (cdr alpha-nodes))
              ;then set the successor of the alphanode to the terminal node
              (add-successor-to-node! first-alpha-node terminal-node))
             (else
              ;else convert the other alpha-lists to alpha-nodes and join-nodes
-             (let ((last-join-node (combine-to-join-nodes first-alpha-node (cdr alpha-nodes) interval)))
+             (let ((last-join-node (combine-to-join-nodes first-alpha-node (cdr alpha-nodes) interval root)))
                ;set the last join-node to the terminal-node
                (add-successor-to-node! last-join-node terminal-node))))
       (start-timer time-manager size time-function))))
@@ -226,7 +159,7 @@
 
 ;makes the joins nodes and other alpha-nodes and link them together
 
-(define (combine-to-join-nodes left-node alpha-nodes interval)
+(define (combine-to-join-nodes left-node alpha-nodes interval root)
   (define (combine-loop left-node alpha-nodes)
     (let* ((first-alpha-node (car alpha-nodes))
            
@@ -240,7 +173,7 @@
       (set-alpha-node-conditions! first-alpha-node null)
       
       ;add new alpha to the root
-      (add-rule-to-root! first-alpha-node)
+      (add-rule-to-root!  root first-alpha-node)
       ;set the successor right
       (add-successor-to-node! first-alpha-node new-join-node)
       (add-successor-to-node! left-node new-join-node)
@@ -256,7 +189,7 @@
 ;HULP
 ;
 
-(define (update-pms-and-propagate old-token new-pm-env node new-time)
+(define (update-pms-and-propagate old-token new-pm-env node new-time root functional-loop)
   (let* (
          (beta-token (if (add-token? old-token)
                          (make-beta-token-add (make-pm new-pm-env new-time) node)
@@ -266,7 +199,7 @@
         (add-partial-match! (make-pm new-pm-env new-time) (filter-node-partial-matches node) )         
         (remove-partial-matches! beta-token (filter-node-partial-matches node)))
     (for-each (lambda (successor)
-                (propagate-to successor beta-token))
+                (propagate-to successor beta-token root functional-loop))
               (filter-node-successors node))))
 
 
@@ -293,7 +226,7 @@
          #f)))
 
 ;token comes from right
-(define (execute-join-node token partial-matches join-node)
+(define (execute-join-node token partial-matches join-node root functional-loop)
   
   (let ((conditions (join-node-conditions join-node))
         (token-pm  (beta-token-pm token))
@@ -310,7 +243,7 @@
                  
                  (execute condition  condition-global-env   combined-pm-env))
            ;  (display "propagate")
-             (update-pms-and-propagate token combined-pm-env join-node combined-time)))))
+             (update-pms-and-propagate token combined-pm-env join-node combined-time root functional-loop)))))
      
      partial-matches)))
 
@@ -320,7 +253,7 @@
 
 
               
-(define (propagate-to node token)
+(define (propagate-to node token root functional-loop)
   (match node
     [(alpha-node partial-matches successors _  event-id formal-args conditions )
      (printf (format "Alpha-node \n" ))
@@ -334,27 +267,27 @@
            (when (for/and ([condition conditions])
                    (execute condition  condition-global-env event-env))
            
-               (update-pms-and-propagate token event-env node (get-time token))))))]
+               (update-pms-and-propagate token event-env node (get-time token) root functional-loop)))))]
                
     [(join-node _ _ _ left-predecessor  right-predecessor conditions)
      (printf (format "Join-node \n"))
      (if (eq? (beta-token-owner token) left-predecessor)
-         (execute-join-node token (filter-node-partial-matches right-predecessor) node)
-         (execute-join-node token (filter-node-partial-matches left-predecessor) node))]
+         (execute-join-node token (filter-node-partial-matches right-predecessor) node root functional-loop)
+         (execute-join-node token (filter-node-partial-matches left-predecessor) node root functional-loop))]
 
 
     [(emit-t-node name exprs)
      (printf (format "Emit node \n"))
-     (execute-terminal-node exprs name token #t)
+     (execute-terminal-node exprs name token #t root functional-loop)
      ]
     [(retract-t-node name exprs)
      (printf (format "retract node \n"))
      
-     (execute-terminal-node exprs name token #f)]
+     (execute-terminal-node exprs name token #f root functional-loop)]
     [(empty-t-node)
      (display "END")]
     [(func:start-if-node _ _)
-     (execute-function-node node token)]
+     (execute-function-node node token functional-loop)]
     ))
 
 (define (get-args node)
@@ -365,18 +298,19 @@
                  (get-args (join-node-right-activation node))))))
 
 ;in case of add fact then it does the then-branch
-(define (execute-function-node node token)
+(define (execute-function-node node token function-thd)
   (let* ((order-args (get-args (beta-token-owner token)))
          (pm-env (pm-env (beta-token-pm token)))
          (ordered-args (map (lambda (variable)
                               (lookup-pm-var pm-env variable))
                             order-args)))
-    (func:set-start-if-node-values! node ordered-args)
+    ;(func:set-start-if-node-values! node ordered-args)
     ;in case of add fact then it does remove
-    (func:propagate-event (func:start-if-node-order node) 1 node 'undefined)
-    ))
+    (func:fire node ordered-args)))
+    ;(func:propagate-event (func:start-if-node-order node) 1 node 'undefined)
+    
             
-(define (execute-terminal-node exprs name token purpose)
+(define (execute-terminal-node exprs name token purpose root functional-loop)
   (when (add-token? token)
     (display "add?")
     (let* ((args (map (lambda (expr)
@@ -389,7 +323,7 @@
                       (make-alpha-token-add  name args)
                       (make-alpha-token-remove name args))))
       
-      (make-propagate-function token))))
+      (make-propagate-function token root functional-loop))))
   
 
 
@@ -399,35 +333,57 @@
 ;add-fact
 ;
 
-(define (propagate-alpha-node token )
+(define (propagate-alpha-node token  root functional-loop)
   
   (get-lock-logic-graph)
-  (make-propagate-function token)
+  (make-propagate-function token root functional-loop)
   (release-lock-logic-graph))
+
+(defmac (make-thd-fact-loop thd-event-loop)
+  #:keywords make-thd-fact-loop
+  #:captures thd-fact-loop root
+  (thread (lambda ()
+    
+    (let loop
+      ((token (thread-receive)))
+      (propagate-alpha-node token  root thd-event-loop)
+      (loop (thread-receive))))))
+       
+
 ;propagates an event with name NAME and args -values trough the DAG
-(define-macro (add: FACT)
-  #'(if (token? FACT)
-        (propagate-alpha-node
-         (make-alpha-token-add
-          (token-id FACT)
-          (token-args FACT)))
+(defmac (add: FACT)
+  #:keywords add:
+  #:captures root thd-fact-loop thd-function-loop events
+  (if (token? FACT)
+        (begin (thread-send thd-fact-loop 
+                            (make-alpha-token-add
+                             (token-id FACT)
+                             (token-args FACT)))
+             ;  (thread-send thd-function-loop (func:message 'event (cons events FACT)))
+               )
+        
         (error (format "~a is not a fact" FACT))))
-(define-macro (remove: FACT)
-  #'(if (token? FACT)
-        (propagate-alpha-node
+(defmac (remove: FACT)
+  #:keywords remove:
+  #:captures root  thd-fact-loop
+  (if (token? FACT)
+        (thread-send thd-fact-loop
          (make-alpha-token-remove
           (token-id FACT)
           (token-args FACT)))
+         
         (error (format "~a is not a fact" FACT))))
 
-(define-macro (fact: NAME ARGS ...)
-  #'(token 'NAME '(ARGS ...)))
+(defmac (fact: NAME ARGS ...)
+  #:keywords fact:
+  (token 'NAME '(ARGS ...)))
      
 
-(define (make-propagate-function token)
+(define (make-propagate-function token root functional-loop)
+  
     (for-each (lambda (node)
-                (propagate-to node token))
-              root))
+                (propagate-to node token root functional-loop))
+              (root-head root)))
 
 ;;
 ;;LOCKING SYSTEM FOR THREADS USED IN WINDOW
@@ -438,7 +394,13 @@
 (define (release-lock-logic-graph)
   (semaphore-post lock-logic-graph))
 
-
+#|(defmac (program exp ...)
+  #:keywords program
+  #:captures root thd-fact-loop
+  (begin
+    (define root (make-root))
+    (define thd-fact-loop (make-thd-fact-loop))
+    exp ...))|#
 ;;
 ;;RESET NODES
 ;;
@@ -502,13 +464,17 @@
 
 
 
-#|(rule: problem where:
-          (event-condition error-overheating () )
-          (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
+#|(program
+ (rule: problem where:
+          ( error-overheating () )
+          ( error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
       
          then: (add: (fact: Problem-overheating  ?cooling-liquid)))
+ (add: (fact: error-overheating ))
+ (add: (fact: error-cooling 0.09))
+ (display (root-head root)))|#
 
-(rule: problem2 where:
+#|(rule: problem2 where:
           (event-condition error-overheating2 () )
           
           then: (add: (fact: problem-overheating  ))

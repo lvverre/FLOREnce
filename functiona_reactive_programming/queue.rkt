@@ -1,0 +1,60 @@
+#lang racket ;br/quicklang
+(provide enqueue! serve! make-queue set-priority event-priority)
+(define set-priority 0)
+(define event-priority 1)
+
+(struct queue (head tail storage) #:mutable #:transparent)
+(struct event (tag info) #:mutable #:transparent)
+
+(define (full? queue)
+  (let ((last (queue-tail queue))
+        (first (queue-head queue))
+        (size (vector-length (queue-storage queue))))
+    (= (modulo (+ last 1) size) first)))
+
+(define (empty? queue)
+  (= (queue-head queue)
+     (queue-tail queue)))
+        
+(define (enqueue! queue tag info)
+  (when (full? queue)
+    (set-queue-head! queue (modulo (+ 1 (queue-head queue)) (vector-length (queue-storage queue)))))
+   
+  (let* ((storage (queue-storage queue))
+         (size (vector-length storage)))
+    (let loop
+      ((idx (queue-tail queue)))
+      (cond
+        ((or
+          (= (queue-head queue) idx)
+          (<= (event-tag (vector-ref storage (modulo (- idx 1) size)))
+             tag))
+         (vector-set! storage idx (event tag info)))
+        (else
+         (vector-set! storage idx (vector-ref storage (modulo (- idx 1) size)))
+         (loop (modulo (- idx 1) size)))))
+    
+    (set-queue-tail! queue (modulo (+ 1 (queue-tail queue)) size))))
+
+(define (serve! queue)
+  (let ((value (vector-ref (queue-storage queue) (queue-head queue))))
+    (set-queue-head! queue
+                 (modulo (+ (queue-head queue) 1) (vector-length (queue-storage queue))))
+     value))
+             
+ (define (make-queue size)
+   (queue 0 0 (make-vector size 0)))
+   
+  #|  
+  
+(struct loop (thread semaphore queue))
+(define (add-event! loop tag function)
+  (let ((thd (loop-thread loop))
+        (thd-queue-semaphore (loop-semaphore loop))
+        (thd-queue (loop-queue loop)))
+    (semaphore-wait thd-queue-semaphore)
+    (
+  
+  
+
+(define (make-|#
