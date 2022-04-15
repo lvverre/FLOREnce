@@ -1,0 +1,40 @@
+#lang racket
+(require "../defmac.rkt"
+         "nodes.rkt"
+         (only-in "../logic/logic-language.rkt" make-alpha-node)
+         (only-in "../functional/nodes.rkt" ))
+
+(defmac (forall: (event-name (args ...) constraints ...)
+                 add: add-expr
+                 remove: remove-expr)
+  #:captures root
+  #:keywords forall: add: remove:
+  (let* ((alpha-node (make-alpha-node event-name '(args ...) '(constraints ...)))   
+         (start-forall-node (make-start-forall-node ))
+         (add-node (make-multi-function-node (list start-if-node) (lambda (args ...) add-expr )))
+         (remove-node (make-multi-function-node (list start-if-node) (lambda (args ...) remove-expr )))
+         (end-add-node  (make-end-forall-node 'L ))
+         (end-remove-node (make-end-forall-node 'R ))
+         (event-node (make-intermediate-event (list add-node remove-node)))
+         (order (vector
+                 start-forall-node
+                 add-node
+                 end-add-node
+                 remove-node
+                 end-remove-node
+                 event-node)))
+        
+        (set-start-forall-node-order! start-if-node order)
+        (register-to-root! alpha-node root)
+        #|(cond ((null? (cdr alpha-nodes))
+             ;then set the successor of the alphanode to the terminal node
+             (logic:add-successor-to-node! (car alpha-nodes) start-if-node))
+            (else
+             ;else convert the other alpha-lists to alpha-nodes and join-nodes
+             (let ((last-join-node (logic:combine-to-join-nodes (car alpha-nodes) (cdr alpha-nodes) SLIDING )))
+               ;set the last join-node to the terminal-node
+               (logic:add-successor-to-node! last-join-node start-if-node))))|#
+    (register-to-predecessor! alpha-node start-forall-node)
+    event-node))
+      
+       

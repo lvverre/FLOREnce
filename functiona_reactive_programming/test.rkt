@@ -5,7 +5,7 @@
 (change-event e2 3)
 (change-event e 4)
 (define l (make-event))
-(define v (map (lambda (x) (display x)) l))
+(define v (event-map l (lambda (x) (display x)) ))
 (add-observer v (lambda (x) (display 3)))
 (define b (make-event))
 (event-and b (lambda (x) (> x 0))(lambda (x) (display (+ x x))) )

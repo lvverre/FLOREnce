@@ -79,14 +79,16 @@ web-server/private/timer
        (event-condition burger (?typeBurger ?customerID)
                         (equal? ?typeBurger 'cyclist))
        then:
-       (add: (fact: cyclisteMenu ?typeBurger ?customerID)))
+       (add: (fact: cyclisteMenu ?typeBurger ?customerID))
+       sliding: 20
+       window: 34)
 
 (logic:add: (logic:fact: side FPB 3))
 ;(logic:add: (logic:fact: side FPB 4))
 (logic:add: (logic:fact: burger cyclist 3))
 (logic:add: (logic:fact: drink Fanta 3))
-(define if-event (e-if: (event-condition drink-level (?drink ?level) (< ?level 0.3))
-                        (event-condition drink-level-2 (?drink2 ?level2) (and (not (equal? ?drink2 ?drink))(< ?level2 0.3)))
+(define if-event (e-if: ( drink-level (?drink ?level) (< ?level 0.3))
+                        ( drink-level-2 (?drink2 ?level2) (and (not (equal? ?drink2 ?drink))(< ?level2 0.3)))
         (begin (printf (format "Drink: ~a needs to be filled ~a" ?drink ?drink2))
                ?drink)
         (begin (printf (format "Drink is filled"))

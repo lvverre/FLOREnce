@@ -1,0 +1,13 @@
+#lang racket
+
+(require "defmac.rkt")
+(defmac (pro el ...)
+  #:keywords pro
+  (define-syntax (convert stx)
+    (syntax-case stx (name args constraints)
+      [(_ (name (args ...) constraints ...))
+       (vector name (list args ) (list constraints))]))
+  (with-syntax ([(exps ...)
+                 (map convert #'(el ...))])
+    (list exps ...)))
+                      

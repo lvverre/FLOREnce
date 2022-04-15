@@ -1,0 +1,22 @@
+#lang racket
+(require "defmac.rkt"
+         "nodes.rkt"
+         "../combination/nodes.rkt")
+
+
+
+;ADD-observer
+(define (add-observer predecessor-node new-function)
+
+  ;see if it is an event
+  (if (event-node? predecessor-node)
+      ;make a new node
+     (let ((successor-node (make-single-function-node (list predecessor-node) new-function )))
+       ;;update all topological lists
+       ;(for-all-event-predecessors-sort successor-node successor-node)
+       ;;incease successor number
+       ;(set-event-node-n-successors! predecessor-node (+  (event-node-n-successors predecessor-node) 1))
+    ;return fuction node
+       successor-node)
+     
+     (error "wrond type of argument given")))

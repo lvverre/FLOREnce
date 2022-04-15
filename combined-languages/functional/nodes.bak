@@ -1,0 +1,72 @@
+#lang racket
+(provide (all-defined-out))
+
+
+
+
+(struct node (predecessors successors visited value)  #:mutable)
+
+;;EVENT
+
+(struct event-node node ()  #:mutable)
+(struct root-event-node event-node (order ) #:mutable )
+(struct intermediate-event-node event-node ())
+
+
+(define (make-root-event)
+  (let ((new-event (root-event-node '() '() #f 'undefined  '())))
+    (set-root-event-node-order! new-event (vector new-event))
+    new-event))
+
+(define (make-intermediate-event predecessors)
+ (intermediate-event-node predecessors '() #f 'undefined ))
+
+
+
+
+
+;FUNCTION
+
+(struct function-node node (function ) )
+
+;;FUNCTION WITH 1 ARGUMENT
+(struct single-function-node function-node () #:mutable)
+(define (make-single-function-node predecessors function )
+  (single-function-node predecessors '() #f 'undefined  function ))
+
+
+
+
+
+;OR-node
+
+(struct or-node event-node () )
+
+(define (make-or-node left right )
+  (or-node (list left right) '() #f 'undefined ))
+
+;FILTER-NODE
+
+(struct filter-node event-node ( filter ) #:mutable )
+
+(define (make-filter-node predecessors filter )
+  (filter-node predecessors '() #f 'undefined  filter ))
+  
+
+
+;;MAKE-JUMP-NODE
+(struct start-jump-node ( condition jump-to) #:mutable #:transparent)
+(define (make-start-jump-node condition  )
+  (start-jump-node  condition 0))
+
+(struct end-jump-node ( direction idx) #:mutable #:transparent)
+(define (make-end-jump-node direction idx)
+  (end-jump-node  direction idx))
+
+
+
+
+  
+
+
+

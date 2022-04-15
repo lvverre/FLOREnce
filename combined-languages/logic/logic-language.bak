@@ -1,0 +1,367 @@
+#lang racket
+
+(provide (all-defined-out))
+
+(require "nodes.rkt"
+         "defmac.rkt"
+         #|"compile.rkt" "nodes3.rkt" "token.rkt" "unification.rkt" "e-environment.rkt" "../window-linked-list.rkt"
+          (prefix-in func: "../functiona_reactive_programming/nodes.rkt")
+          (prefix-in func: "../functiona_reactive_programming/functional_reactive_language_3.rkt")
+          "variables.rkt"
+          web-server/private/timer
+          )|#
+
+
+;MAKE NODES
+
+(define (make-alpha-node name args conditions )
+  (alpha-node '() '() name args (map (lambda (condition) (compile condition #t)) conditions)))
+    
+        
+(define (make-production-node todo)
+  (match todo
+    [`(,op (fact: ,name ,args ...))
+     (let ((compiled-args (map (lambda (arg)
+                                 (compile arg #f))
+                                 args)))
+       (if (symbol? name)
+           (match op
+             ['add:
+              (emit-t-node name compiled-args)]
+             ['remove:
+              (retract-t-node name compiled-args)]
+             [ _ (error (format "~a operator is not allowed then:-part of rule" op))])
+           (error (format "~a is not a symbol" name))))]
+    [_ (error (format "~a is not a valide expression for the then:-part of a rule" todo))]))
+
+
+(define (remove-constraint-from-alpha-node! alpha-node)
+  (set-alpha-node-constraint! first-alpha-node null))
+
+;makes the joins nodes and other alpha-nodes and link them together
+
+(define (combine-to-join-nodes alpha-nodes)
+  (define (combine-loop left-node alpha-nodes)
+    (if (null? alpha-nodes)
+        left-node
+        (let* ((right-node (car alpha-nodes))
+               (new-join-node  ;make join-node
+                (make-join-node left-node right-node  (alpha-node-constraint right-node))))
+          ; constraint is moved to join node
+          (remove-constraint-from-alpha-node! right-node)
+          ;set the successor right
+          (register-to-successor! right-node new-join-node)
+          (register-to-successor! left-node new-join-node)
+          ;end step
+          (combine-loop new-join-node (cdr alpha-nodes)))))
+  (combine-loop (car alpha-nodes) (cdr alpha-nodes)))
+
+
+;TODO check the variabes in the event-conditions
+(defmac (rule: name where: (event-name (args ...) constraint) ... then: then-clause)
+  #:keywords rule: where: then:
+  #:captures root            
+    #'(let ((alpha-nodes (map (lambda (event-name args constraint)
+                                (let ((new-node (make-alpha-node event-name args constraint)))
+                                  (register-to-root!  new-node root)
+                                  new-node))
+                              '(event-name ...)
+                              '((args ...) ...)
+                              '(constraint)))
+             ;gives back terminal node
+             (production-node (make-produciton-node then-clause)))
+        (let ((last-node (combine-to-join-nodes alpha-nodes)))
+          ;set the last join-node to the terminal-node
+          (register-to-successor! last-node production-node))))
+        
+  
+
+
+
+;;
+;;MAKE TERMINAL-NODES
+;;
+
+(define (make-terminal-node todo)
+  (match todo
+    [`(,op (fact: ,name ,args ...))
+     (let ((compiled-args (map (lambda (arg)
+                                 (compile arg #f))
+                                 args)))
+       (if (symbol? name)
+           (match op
+             ['add:
+              (emit-t-node name compiled-args)]
+             ['remove:
+              (retract-t-node name compiled-args)]
+             [ _ (error (format "~a operator is not allowed then:-part of rule" op))])
+           (error (format "~a is not a symbol" name))))]
+    [_ (error (format "~a is not a valide expression for the then:-part of a rule" todo))])) 
+     
+
+
+
+
+
+
+
+
+
+
+;
+;HULP
+;
+
+(define (update-pms-and-propagate old-token new-pm-env node new-time)
+  (let* (
+         (beta-token (if (add-token? old-token)
+                         (make-beta-token-add (make-pm new-pm-env new-time) node)
+                         (make-beta-token-remove (make-pm new-pm-env new-time) node))))
+  
+    (if (add-token? old-token)
+        (add-partial-match! (make-pm new-pm-env new-time) (filter-node-partial-matches node) )         
+        (remove-partial-matches! beta-token (filter-node-partial-matches node)))
+    (for-each (lambda (successor)
+                (propagate-to successor beta-token))
+              (filter-node-successors node))))
+
+
+
+
+
+
+
+
+
+
+
+       
+;
+;PROCESS-JOIN-NODE
+;
+
+
+(define (combine-times time1 time2)
+  (cond ((and (number? time1)
+              (number? time2))
+         (min time1 time2))
+        (else
+         #f)))
+
+
+(define (execute-join-node token opposite-partial-matches join-node)
+  (let ((constraints (join-node-constraints join-node))
+        (token-partial-match  (beta-token-pm token)))
+    (for-each
+     (lambda (opposite-partial-match)     
+       (let ((combined-partial-match-env (combine-env (pm-env token-partial-match) (pm-env opposite-partial-match))))
+         (when combined-partial-match-env
+           (when 
+               (for/and ([constraint constraints])
+                 (execute constraint condition-global-env   combined-partial-match-env))
+             (update-pms-and-propagate token combined-pm-env join-node combined-time)))))
+     opposite-partial-matches)))
+
+
+(define (execute-alpha-node token alpha-node)
+  (when (equal? (alpha-token-id token) (alpha-node-event-id alpha-node))
+    (let ((event-env (unify-args (alpha-token-args token)
+                                 (alpha-node-args alpha-node)
+                                 empty-pm-env)))
+      (when event-env
+        (when (for/and ([constraint (alpha-node-constraints alpha-node)])
+                (execute constraint  condition-global-env event-env))
+          (update-pms-and-propagate token event-env alpha-node))))))
+
+      
+(define (execute-production-node exprs name token purpose)
+  (when (add-token? token)
+    (display "add?")
+    (let* ((args (map (lambda (expr)
+                        (execute expr
+                                 body-global-env
+                                 (pm-env (beta-token-pm token))
+                                 ))
+                      exprs))
+           (token (if purpose
+                      (make-alpha-token-add  name args)
+                      (make-alpha-token-remove name args))))
+      
+      (make-propagate-function token))))
+
+
+              
+(define (propagate-to-node token node)
+  (match node
+    [(alpha-node _ _ _  _ _ _ )
+     (execute-alpha-node token node)]             
+    [(join-node _ _ _ left-predecessor  right-predecessor _)
+     (printf (format "Join-node \n"))
+     (if (eq? (beta-token-owner token) left-predecessor)
+         (execute-join-node token (filter-node-partial-matches right-predecessor) node)
+         (execute-join-node token (filter-node-partial-matches left-predecessor) node))]
+    [(emit-t-node name exprs)
+     (printf (format "Emit node \n"))
+     (execute-production-node exprs name token #t)]
+    [(retract-t-node name exprs)
+     (printf (format "retract node \n"))   
+     (execute-production-node exprs name token #f)]
+    [(start-if-node _ _)
+     (execute-if-node node token)]
+    ))
+
+(define (get-args node)
+  (cond ((alpha-node? node)
+         (alpha-node-args node))
+        (else
+         (append (get-args (join-node-left-activation node))
+                 (get-args (join-node-right-activation node))))))
+
+;in case of add fact then it does the then-branch
+(define (execute-function-node node token)
+  (let* ((order-args (get-args (beta-token-owner token)))
+         (pm-env (pm-env (beta-token-pm token)))
+         (ordered-args (map (lambda (variable)
+                              (lookup-pm-var pm-env variable))
+                            order-args)))
+    (set-start-if-node-values! node ordered-args)
+    ;in case of add fact then it does remove
+    (func:propagate-to (func:start-if-node-order node) 1 node 'undefined)))
+            
+
+  
+
+
+
+
+;
+;add-fact
+;
+
+(define (propagate-alpha-node token )
+  
+  (get-lock-logic-graph)
+  (make-propagate-function token)
+  (release-lock-logic-graph))
+;propagates an event with name NAME and args -values trough the DAG
+(define-macro (add: FACT)
+  #'(if (token? FACT)
+        (propagate-alpha-node
+         (make-alpha-token-add
+          (token-id FACT)
+          (token-args FACT)))
+        (error (format "~a is not a fact" FACT))))
+(define-macro (remove: FACT)
+  #'(if (token? FACT)
+        (propagate-alpha-node
+         (make-alpha-token-remove
+          (token-id FACT)
+          (token-args FACT)))
+        (error (format "~a is not a fact" FACT))))
+
+(define-macro (fact: NAME ARGS ...)
+  #'(token 'NAME '(ARGS ...)))
+     
+
+(define (make-propagate-function token)
+    (for-each (lambda (node)
+                (propagate-to node token))
+              root))
+
+;;
+;;LOCKING SYSTEM FOR THREADS USED IN WINDOW
+;;
+(define lock-logic-graph (make-semaphore 1))
+(define (get-lock-logic-graph)
+  (semaphore-wait lock-logic-graph))
+(define (release-lock-logic-graph)
+  (semaphore-post lock-logic-graph))
+
+
+;;
+;;RESET NODES
+;;
+  
+(define (reset-logic-graph alpha-nodes)
+  (define (reset-node node)
+    (when (filter-node? node)
+      ;for each successor do reset
+      (for-each
+       (lambda (successor-node)
+         (match successor-node
+           ;for each successor do reset except for if-node
+           ;if-node needs to check if the window is empty
+           ;EMPTY => activate else-branch
+           [(func:start-if-node values order)
+            (when (empty? (filter-node-partial-matches node))
+              (func:set-start-if-node-values! successor-node '())
+              (func:propagate-event (func:start-if-node-order successor-node) 3 node 'undefined))]
+           [_ (reset-node successor-node)]))
+       (filter-node-successors node))
+       (reset-window! (filter-node-partial-matches node) (filter-node-interval node))))
+  (get-lock-logic-graph)     
+  (for-each 
+   reset-node
+   alpha-nodes)
+  (semaphore-post lock-logic-graph))
+#|(define (reset-logic-graph)
+  (define (reset-node node)
+    (when (filter-node? node)
+      ;for each successor do reset
+      (for-each
+       (lambda (successor-node)
+         (match successor-node
+           ;for each successor do reset except for if-node
+           ;if-node needs to check if the window is empty
+           ;EMPTY => activate else-branch
+           [(func:start-if-node values order)
+            (when (empty? (filter-node-partial-matches node))
+              (func:set-start-if-node-values! successor-node '())
+              (func:propagate-event (func:start-if-node-order successor-node) 3 node 'undefined))]
+           [_ (reset-node successor-node)]))
+       (filter-node-successors node))
+       (reset-window! (filter-node-partial-matches node) (filter-node-interval node))))
+  (get-lock-logic-graph)     
+  (for-each 
+   reset-node
+   root)
+  (semaphore-post lock-logic-graph))|#
+#|
+(thread
+ (lambda ()
+   (define (window-timing-loop)
+     (display "timer started")
+     (reset-logic-graph)
+     (display "reset")
+     (sleep 60)
+     (window-timing-loop)) 
+   (window-timing-loop)))|#
+
+
+
+
+
+#|(rule: problem where:
+          (event-condition error-overheating () )
+          (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
+      
+         then: (add: (fact: Problem-overheating  ?cooling-liquid)))
+
+(rule: problem2 where:
+          (event-condition error-overheating2 () )
+          
+          then: (add: (fact: problem-overheating  ))
+          window: 30
+          sliding: 20)|#
+;(rule: 2 where:
+ ;;         (event-condition error-overheating (?temp) (> ?temp 76))
+  ;        (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
+      
+  ;       then: nothing)
+;(rule: 2 where:
+ ;         (event-condition error-overheating (?temp) (> ?temp 76))
+  ;        (event-condition error-cooling (?cooling-liquid) (< ?cooling-liquid 0.10))
+   ;   
+    ;     then: (remove: (fact: error-overheating ?temp)))
+
+

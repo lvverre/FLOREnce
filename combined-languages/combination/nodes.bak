@@ -1,0 +1,16 @@
+#lang racket
+(provide (all-defined-out))
+;;MAKE-FORALL-NODE
+
+(struct start-forall-node (values order) #:mutable #:transparent)
+(define (make-start-forall-node)
+  (start-forall-node '() '()  ))
+
+(struct end-forall-node (direction ) #:mutable #:transparent)
+(define (make-end-forall-node direction )
+  (end-forall-node direction ))
+
+(define (end-forall-add-node node) 
+  (car (node-predecessors node)))
+(define (end-forall-remove-node node)
+  (cadr (node-predecessors node)))

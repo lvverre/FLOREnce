@@ -1,9 +1,4 @@
 #lang br/quicklang
-(provide (all-defined-out))
-(require "../window-linked-list.rkt")
-(require "variables.rkt")
-
-
 
 
 ;ROOT

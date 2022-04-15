@@ -1,0 +1,237 @@
+#lang racket
+
+(define (new-env)
+  (make-hash))
+
+(define (add-to-env! var val env)
+  (hash-set! env var val))
+      
+
+(define (lookup-var var env)
+   (if (hash-has-key? env var)
+       (hash-ref env var)
+       (error (format "~a is not defined" var))))
+
+(define native-env (new-env))
+(define reactor-env (new-env))
+(define (set-up-native)
+  (map (lambda (var val) (const (add-to-env! var val native-env)))
+       '(+ - / *)
+       (list + - / *)))
+
+
+(define (topological-sort leaf-nodes)
+  
+  
+  (define (permanent? el)
+    (>= el 0))
+  (define (temporary? el)
+    (= -1 el))
+  (define temporary -1)
+  
+
+              
+
+  (define topological-sorted-list '())
+  (define index 0)
+  (define (add-node! node)
+    (set! topological-sorted-list (cons node topological-sorted-list))
+    (set! index (+ index 1)))
+  
+
+  ;;for all start-nodes start visit function
+  (define (sort start-nodes)
+    (for-each
+     visit
+     start-nodes)
+    )
+  ;;add elements in topological order to list
+  (define (visit node)
+      (cond
+        ;;already visited
+        ((permanent? (node-value node)))
+        ;;there is an error
+        ((temporary? (node-value node))
+         (error "There is a cycle"))
+        (else
+         (cond
+           ((root-node? node)
+            (set-node-idxval! node index)
+            (add-set! node))
+            
+           ((forall-or-node? node)            
+            (let* ((predecessors  (node-predecessors node))
+                   (add-node (car predecessors))
+                   (remove-node (cadr predecessors))
+                   (root (internal-node-predecessors remove-node))
+                   (start-jump-node (make-start-jump-node
+                                     (lambda (node)
+                                       (car (node-value node))
+                                       )))                         
+                   (end-add-node  (make-end-jump-node 'L 3))
+                   (end-remove-node (make-end-jump-node 'R 1)))
+              (set-start-jump-node-jump-to! start-jump-node 3)
+              (add-node! root)
+              (add-node! start-jump-node)
+              (add-node! add-node)
+              (add-node! end-add-node)
+              (add-node! remove-node)
+              (add-node! end-remove-node)
+              (set-node-idxval! node index)
+              (add-node! node)))
+              
+                   
+           ;;or node encountered
+           ((or-node? node)
+            (set-node-idxval! node temporary)
+            (let* ((predecessors (internal-node-predecessors node))
+                   (condition (lambda (node)
+                                (for/or ([root-node (get-root-nodes (car predecessors))])
+                                  (eq? node root-node))))
+                   (start-jmp-node (make-start-jump-node condition ))
+                   (start-index index))
+              (add-node! start-jmp-node)
+              (let ((end-jmp-nodes 
+                    ;for left and right predecessors do:
+                    (map
+                     (lambda (predecessor  direction)    
+                         ;;add other nodes
+                       (visit predecessor)
+                         
+                       ;add end jump node to register with the direction of the branch
+                       (let ((end-jmp-node (make-end-jump-node direction 0))
+                             (end-index index))
+                         (add-node! end-jmp-node)
+                         
+                         (cons  end-index end-jmp-node)))
+                     
+                     predecessors
+                     
+                     (list 'L 'R))))
+              (set-start-jump-node-jump-to! start-jmp-node
+                                            (abs (- (+ (caar end-jmp-nodes) 1)
+                                                    start-index)))
+              (for-each (lambda (index-node)
+                          (set-end-jump-node-idx! (cdr index-node)
+                                                  (abs (- (car index-node)
+                                                               index))))
+                          
+                        end-jmp-nodes)
+                (st-node-idxval! node index)
+              ;;add or node to top list
+              (add-node! node)
+              ;change mark to permanent
+              )))
+
+                
+                 
+           (else
+            ;;not or node or end event node so
+            ;;keep goind down the tr
+            (set-node-idxval! node temporary)
+            (visit (node-predecessors node))
+            
+            (set-node-idxval! node index)
+            (add-node!  node)
+            )))))
+  
+  
+ 
+    ;get topological sort
+    (sort leaf-nodes)
+  ;;reverse 
+    (let ((reverse-sorted (reverse topological-sorted-list)))
+    ;;make vector and store in node
+      (list->vector reverse-sorted)))
+
+
+
+
+
+
+(struct reactor (ins dag out) #:transparent)
+(struct node (idx value) #:mutable)
+(struct root-node node ())
+
+
+(struct const (value) #:transparent)
+(struct event ())
+(define compiled-event (event))
+(struct fun-apl (operator operands) #:transparent)
+(struct if-exp (pred then else) #:transparent)
+  
+(define ((compile env event-name) exp )
+  (match exp
+    [`(if ,pred ,then-branch ,else-branch)
+     (if-exp
+      ((compile env event-name) pred )
+      ((compile env event-name)then-branch )
+      ((compile env event-name) else-branch ))]
+    [value
+     #:when (or (number? value) (string? value))
+     (const value)]
+    
+    [`(,op ,opands ...)
+     (let ((c-operator (const-value (lookup-var op env)))
+           (c-opands (map (compile env event-name) opands)))
+       (fun-apl
+        c-operator
+        c-opands))]
+    [event
+     #:when (equal? event event-name)
+     compiled-event]
+    [value
+     (lookup-var value env)]))
+  
+(define (make-root-node! name env)
+  (let ((new-node (root-node -1 value)))
+    (add-to-env! name new-node env)
+    new-node))
+
+(define (make-map-node event-name expr env)
+  (if (symbol? event-name)
+      (let ((predecessor (lookup-var event-name env)))
+        (cond (predecessor
+               (make-single-function-node predecessor ((compile env event-name) expr)))
+              (else
+               (error (format "~a is not defined" event-name)))))
+      (error (format "map: accepts event name as first argument not ~a" event-name))))
+           
+(define (define-node name node env)
+  (cond ((and (symbol? name)
+              (node? node))
+         (add-to-env! event-name node env))
+        ((symbol? name)
+         (error (format "def: accepts map: or filter: or or: as second argument not ~a" node)))
+        (else
+         (error (format "def: accepts event name as first argument not ~a" name)))))
+
+
+  
+         
+  
+(defmac (reactor: name in: ins ... body: exprs ... out: outs ...)
+  #:keywords reactor: in: body: out:
+  #:captures reactor-env
+  (let* ((node-env (new-env)) 
+         (in-nodes (map (lambda (name)
+                         (make-root-node! name node-env))
+                        '(ins ...))))
+    (local [(defmac (map: name expr ...)
+              #:keywords map:
+              (make-map-node 'name 'expr node-env))
+            (defmac (def: event-name node)
+              #:keywords def:
+              (define-node 'event-name 'node))]
+      (begin
+        exprs ...
+        (let* ((out-nodes (map (lambda (out-name) (lookup-var out-name node-env)) '(outs ...)))
+               (sorted (topological-sort out-nodes)))
+          (for ([node sorted])
+            (when (internal-node? node)
+              (set-internal-node-predecessors! node
+                                               (map node-idxval (internal-predecessors node)))))
+          (reactor
+           (list->vector (map node-idxval in-nodes))
+           sorted
+           (list->vector (map node-idxval out-nodes))))))))
