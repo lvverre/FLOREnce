@@ -9,15 +9,14 @@
          "compiler.rkt"
          "environment.rkt"
         "../have-lock.rkt"
-         (only-in "../functional/nodes.rkt" root-event-node set-node-value! root-event-node-order)
-         (prefix-in func: (only-in "../functional/functional.rkt"   functional-propagate fire-from-logic-graph)))
-         #|"compile.rkt" "nodes3.rkt" "token.rkt" "unification.rkt" "e-environment.rkt" "../window-linked-list.rkt"
-          (prefix-in func: "../functiona_reactive_programming/nodes.rkt")
-          (prefix-in func: "../functiona_reactive_programming/functional_reactive_language_3.rkt")
-          "variables.rkt"
-          web-server/private/timer
-          )|#
+        (only-in "../combination/forall2.rkt"
+                 functional-connector
+                 functional-connector-deployedR-add
+                 functional-connector-deployedR-remove)
+        (only-in "../functional/functional2.rkt" execute-turn))
 
+       
+       
 
 ;MAKE NODES
 
@@ -119,7 +118,7 @@
 
 
 
-(define (logic-propagate token node root events)
+(define (logic-propagate token node root timer); events)
 
   
   (define (execute-alpha-node token alpha-node  )
@@ -160,7 +159,18 @@
                       (make-alpha-token-add  (production-node-name node) args (emit-node-alive-time node))
                       (make-alpha-token-remove (production-node-name node) args))))
       
-      (propagate-from-root token  root events))))
+      (propagate-from-root token  root)))); events))))
+
+  (define (execute-functional-connector node token )
+    (let* ((order-args (alpha-node-args (beta-token-owner token)))
+         (pm-env  (beta-token-pm token))
+         (input (for/vector ([variable order-args])
+                  (lookup-event-variable  variable pm-env)))
+         (deployedR (if (add-token? token)
+                        (functional-connector-deployedR-add node)
+                        (functional-connector-deployedR-remove node))))
+      (execute-turn deployedR  input root root-lock timer)))
+           
 
   
   (define (update-pms-and-propagate old-token new-pm-env node   )
@@ -203,33 +213,17 @@
     [(retract-node _ _)
      (printf (format "retract node \n"))   
      (execute-production-node node token #f  )]
-    [(root-event-node _ _ _ _ _)
-     (execute-root-event-node node token )]))
+    [(functional-connector _ _ )
+     (execute-functional-connector node token )]
+    ))
   (propagate-to-node token node))
      
-   #| [(start-if-node _ _)
-     (execute-if-node node token)]|#
+  
   
 
-#|(define (get-args node)
-  (cond ((alpha-node? node)
-         (alpha-node-args node))
-        (else
-         (append (get-args (join-node-left-activation node))
-                 (get-args (join-node-right-activation node))))))|#
 
-;in case of add fact then it does the then-branch
-(define (execute-root-event-node node token )
-  (let* ((order-args (alpha-node-args (beta-token-owner token)))
-         (pm-env  (beta-token-pm token))
-         (ordered-args (map (lambda (variable)
-                              (lookup-event-variable  variable pm-env))
-                            order-args)))
-    (set-node-value! node (cons (add-token? token) ordered-args))
-    (func:functional-propagate (root-event-node-order node) 0 'UNDEFINED node)))
-    ;in case of add fact then it does remove
-   ; (func:propagate-to (func:start-if-node-order node) 1 node 'undefined)))
-            
+
+
 
 (define (expired? pm)
   (and (not (= -1 (alpha-pm-expiration-time pm)))
@@ -246,7 +240,7 @@
 (define for-all-partial-matches for-each)
 (define for-all-successors for-each)
 
- (define (remove-expired-facts root events)
+ (define (remove-expired-facts root); events)
    (for-all-in-root root
                     (lambda (alpha-node)
                       (let-values ([(keep-pms remove-pms) (split-remove-keep-pms alpha-node)])
@@ -257,7 +251,7 @@
                                     (let ((new-token (make-beta-token-remove (pm-env partial-match)
                                                                              alpha-node)))
                                       (for-all-successors (lambda (successor)
-                                                            (logic-propagate new-token successor root events))
+                                                            (logic-propagate new-token successor root)); events))
                                                             
                                                 (filter-node-successors alpha-node))))
                                   remove-pms)))))
@@ -266,12 +260,12 @@
     
 
 ;Makes a timer that will go off to clean up the expired facts
-(define (make-timer root root-lock events)
+(define (make-timer root root-lock); events)
   (new timer% [notify-callback
                (lambda ()
                  
                  (when (semaphore-try-wait? root-lock)
-                   (remove-expired-facts root events)
+                   (remove-expired-facts root); events)
                    (semaphore-post root-lock)))]))
  
                                      
@@ -281,50 +275,36 @@
 ;add-fact
 ;
 
-(define (start-propagation-with-locking token root-lock root timer events)
+(define (start-propagation token root-lock root timer); events)
   (semaphore-wait root-lock)
   (send timer start 1000)
-  (propagate-from-root token root events)
-  (remove-expired-facts root events)
+  (propagate-from-root token root timer); events)
+  (remove-expired-facts root );events))
   (semaphore-post root-lock))
-
-(define (start-propagation token root-lock root timer events)
-  (cond ((have-lock?)
-         (send timer start 1000)
-         (propagate-from-root token root events)
-         (remove-expired-facts root events))
-        (else
-         (semaphore-wait root-lock)
-         (parameterize ([have-lock? #t])
-           (send timer start 1000)
-           (propagate-from-root token root events)
-           (remove-expired-facts root events))
-         (semaphore-post root-lock))))
 
 ;propagates an event with name NAME and args -values trough the DAG
 
 
 (defmac (add: FACT for: alive-interval)
   #:keywords add: for:
-  #:captures graph-lock timer root events eternity
+  #:captures root-lock timer root 
   (if (token? FACT)
       (start-propagation
        (make-alpha-token-add (token-id FACT)(token-args FACT) alive-interval)
-       graph-lock
+       root-lock
        root
        timer
-       events)
+      )
       (error (format "~a is not a fact" FACT))))
 (defmac (remove: FACT)
   #:keywords remove:
-  #:captures graph-lock timer root events 
+  #:captures root-lock timer root  
   (if (token? FACT)
       (start-propagation
        (make-alpha-token-remove (token-id FACT)(token-args FACT))
-       graph-lock
+       root-lock
        root
-       timer
-       events)
+       timer)
       (error (format "~a is not a fact" FACT))))
 
 (defmac (fact: NAME ARGS ...)
@@ -332,10 +312,10 @@
   (token 'NAME '(ARGS ...)))
      
 
-(define (propagate-from-root token root events)
-  (func:fire-from-logic-graph events token)
+(define (propagate-from-root token root timer)
+  ;(func:fire-from-logic-graph events token)
   (for-each (lambda (node)
-              (logic-propagate token node root events)
+              (logic-propagate token node root  timer)
               )
             (root-registered-nodes root)))
 

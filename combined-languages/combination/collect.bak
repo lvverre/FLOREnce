@@ -1,0 +1,56 @@
+#lang racket
+(require "../defmac.rkt")
+
+
+(struct queue (head tail collections) #:mutable)
+
+(define put-collection! vector-set!)
+(define make-collection make-vector)
+(define get-collection vector-ref)
+(define size-collection vector-length)
+(define 
+(define (empty-place? collection idx)
+  (eq? 'empty (get-collection collection idx)))
+
+(define (full? collection)
+  (for/and ([value collection])
+    (not (equal? 'empty value))))
+ 
+
+(define (put! queue value idx-collection root)
+  (define (move! )
+    (let ((new-collection  (make-collection (size-collection
+                                             (vector-ref (queue-collections queue)
+                                                         (queue-head queue)))
+                                            'empty))
+          (old-head (queue-head queue))
+          (collections (queue-collections queue)))
+      (vector-set! collections
+                   (queue-tail queue) 
+                   new-collection)
+      (put-collection! new-collection idx-collection value)
+      (set-queue-tail! queue (queue-head queue))
+      (set-queue-head! queue (modulo (+ (queue-head queue) 1) (vector-length queue)))
+      (vector-ref collections (queue
+  (let (collections (queue-collections queue))
+    (let loop-for-place
+      ((idx-queue (queue-head queue)))
+      
+      (cond ((= idx-queue (queue-tail queue))
+             (move!))
+            ((empty? (vector-ref collections  idx-queue) idx-collection)
+             (let ((collection (vector-ref collections idx-queue)))
+               (put-collection! collection idx-collection value)
+               (when (full? collection)
+                 (set-queue-head! queue (+ (queue-head queue) 1) (vector-length queue)))
+                 )))
+            
+             (
+                    
+        
+
+(define (move! queue)
+  (define new-collection (
+
+(defmac (collect*: storage-size as: reactor-name)
+  

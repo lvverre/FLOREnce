@@ -1,0 +1,2 @@
+#lang racket
+(define have-lock? (make-parameter #f))

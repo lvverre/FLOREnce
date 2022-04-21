@@ -1,0 +1,26 @@
+#lang racket
+
+
+
+(define native-map-env (new-env))
+(define native-filter-env (new-env))
+
+
+(define (set-up-native-map)
+  (map (lambda (var val) (add-to-env! var (const val) native-map-env))
+       '(+ - / *)
+       (list + - / *)))
+(define (set-up-native-filter)
+  (map (lambda (var val) (add-to-env! var (const val) native-filter-env))
+       '(< > equal? eq? <= >=  = not and or )
+       (list < > equal? eq? <= >= = (lambda (value)
+                                      (not value))
+             (lambda (el1 el2)
+               (and el1 el2))
+             (lambda (el1 el2)
+               (or el1 el2)))))
+
+(struct c-const (value) #:transparent)
+(struct c-event ())
+(define compiled-event (c-event))
+(struct c-fun-apl (operator operands) #:transparent)

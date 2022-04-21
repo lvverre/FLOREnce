@@ -8,19 +8,19 @@
        (burger (?customerId ?burgerType))
        (drink (?customerId ?drink) (equal? ?drink 'fanta))
        then: (add: (fact: pl-menu ?drink ?burgerType) for: 5))
-(define e10 (forall: (b (?c) ) on-add: (+ ?c 1) on-remove: (- ?c 1)))
+;(define e10 (forall: (b (?c) ) on-add: (+ ?c 1) on-remove: (- ?c 1)))
 
 
 
-(define e1 (make-event))
-(define e2 (event-filter e1 (lambda (e) (> e 1))))
-(define e3 (event-map e2 (lambda (e) (+ e 3))))
-(define e4 (make-event))
-(define e5 (event-map e4 (lambda (e) (+ e 4))))
-(define e6 (event-or e3 e5))
-(define e7 (make-event))
-(define e8 (event-or e6 e7))
-(define e9 (event-or e8 e10))
+;(define e1 (make-event))
+;(define e2 (event-filter e1 (lambda (e) (> e 1))))
+;(define e3 (event-map e2 (lambda (e) (+ e 3))))
+;(define e4 (make-event))
+;(define e5 (event-map e4 (lambda (e) (+ e 4))))
+;(define e6 (event-or e3 e5))
+;(define e7 (make-event))
+;(define e8 (event-or e6 e7))
+;(define e9 (event-or e8 e10))
 
 (define o1 (add-observer e9 (lambda (e)(display "START") (display e))))
 

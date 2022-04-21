@@ -3,9 +3,9 @@
          "nodes.rkt"
          
          "../combination/forall.rkt"
-         (only-in "../combination/forall.rkt" multi-function-node)
+         ;(only-in "../combination/forall2.rkt" multi-function-node)
          "../have-lock.rkt")
-(provide add-observer remove-observer event-map event-filter event-or fire make-event root-event-node functional-propagate fire-from-logic-graph)
+#|(provide add-observer remove-observer event-map event-filter event-or fire make-event root-event-node functional-propagate fire-from-logic-graph)
 
 
 (define (get-root-nodes node)
@@ -371,7 +371,7 @@
     ( e))
   ( "STOP")|#
   
-  (loop idx branch))
+  (loop idx branch))|#
 
 
 

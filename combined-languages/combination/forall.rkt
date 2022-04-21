@@ -6,7 +6,7 @@
          "../functional/nodes.rkt"
          )
 (provide (all-defined-out))
-
+#|
 (struct multi-function-node function-node () #:mutable)
 
 (define (make-multi-function-node predecessor function )
@@ -62,5 +62,5 @@
                (logic:add-successor-to-node! last-join-node start-if-node))))|#
     (register-successor! alpha-node forall-root-node)
     event-node))
-      
+      |#
        
