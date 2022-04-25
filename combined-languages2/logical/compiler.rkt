@@ -1,7 +1,8 @@
 #lang br/quicklang
-(require "environment.rkt")
-(provide compile execute true event-variable?)
-
+(require "../functional/environment.rkt")
+(provide compile event-variable? compile-multiple-in-one compile-arguments)
+(require "../parse-values.rkt")
+(require "../primitives.rkt")
 ;COMPILE 
 
 
@@ -32,47 +33,93 @@
     (not (string-contains? (substring variable-string 0 1) "?"))))
 
 
-;COMPILE
-(struct const (value) #:transparent)
-(struct event-var (variable) #:transparent)
-(struct global-var (variable) #:transparent)
-(struct fun-apl (operator operands) #:transparent)
+(define native-reactor-env (make-hash
+                            (list (cons '+ prim-add)
+                                  (cons '- prim-sub)
+                                  (cons '* prim-mul)
+                                  (cons '/ prim-div)
+                                  (cons 'equal? prim-equal?)
+                                  (cons '> prim-greater-then?)
+                                  (cons '< prim-smaller-then?)
+                                  (cons '<= prim-smaller-equal-then?)
+                                  (cons '>= prim-greater-equal-then?)
+                                  (cons '! prim-not)
+                                  (cons 'and prim-and)
+                                  (cons 'or prim-or))))
 
+
+
+(define (compile-arguments expr env) ; global-env condition-part)
+  (match expr
+    ;check if the expression is a number of string
+    [arg
+     #:when (number? expr)
+     (nmb expr)]
+    [arg
+     #:when (string? expr)
+     (str expr)]
+    ;check if it is a function application
+    [`(pair ,first ,rest)
+     (pair (compile-arguments first )
+           (compile-arguments rest ))]
+    [`(sym ,val)
+     #:when (symbol? val)
+     (sym val)]
+    [var
+     #:when (symbol? var)
+     (lookup-var-error var env)]
+    [_ (error (format "fact: has not a good argument"))]))
+
+(define (compile-multiple-in-one exprs condition-part)
+  (let ((result (let loop
+                  ((exprs exprs))
+                  (cond ((null? exprs) true)
+                        ((null? (cdr exprs))
+                         (compile (car exprs) condition-part))
+                        (else (app prim-and
+                                   (cons (compile (car exprs) condition-part)
+                           (loop (cdr exprs)))))))))
+    (list result)))
 ;compile expr
 ;condition-part is a boolean that indicates if it compiles the condition-part
 ;or body-part of the rule (#t ->condition part / #f body part)
-(define (compile expr condition-part); global-env condition-part)
-  (cond
-    ;check if the expression is a number of string
-    ((or (number? expr)
-         (string? expr))
-     (const expr))
-    ;check if it is a function application
-    ((pair? expr)
-     (cond ((equal? 'quote (car expr))
-            (const (cadr expr)))
-           (else 
-     ;compile operator
-     ;compile operands
-     (let ((operator (compile (car expr ) condition-part)); global-env condition-part))
-           (operands (map (lambda (operand)
-                            (compile operand condition-part)); global-env condition-part))
-                          (cdr expr))))
-       
-       (fun-apl operator operands)))))
+(define (compile expr condition-part )
+  (define (compile-args expr condition-part) ; global-env condition-part)
+    (match expr
+      ;check if the expression is a number of string
+      [arg
+       #:when (number? expr)
+       (nmb expr)]
+      [arg
+       #:when (string? expr)
+       (str expr)]
+      ;check if it is a function application
+      [`(pair ,first ,rest)
+       (pair (compile-args first condition-part)
+             (compile-args rest condition-part))]
+      [`(sym ,val)
+       #:when (symbol? val)
+       (sym val)]
+      [_ (compile-app-val expr condition-part)]))
+
+  (define (compile-app-val expr condition-part)
+    (match expr
+    [`(,op ,args ...)
+     (let ((compiled-operator (lookup-var-error op native-reactor-env ))
+           (compiled-args (map (lambda (oprnd)
+                                 (compile-args oprnd condition-part))
+                               args)))
+       (app compiled-operator compiled-args))]
+      
     ;check if event-variable
-    ((event-variable? expr)
-     (event-var expr))
-       
-    ;check if global variable
-    ((global-variable? expr)
-     (global-var expr))
-    (else
-    
-     (error (format "wrong expression: ~a" expr)))))
+    [var
+     #:when (symbol? var)
+     (var-exp var)]
+    [_  (error (format "wrong expression: ~a" expr))]))
+  (compile-app-val expr condition-part))
 
 
-
+#|
 
 (define (execute expr global-env  event-env)
   (match expr
@@ -88,4 +135,4 @@
        (apply op opnds))]))
 
 
-(define true (const #t))
+(define true (const #t))|#

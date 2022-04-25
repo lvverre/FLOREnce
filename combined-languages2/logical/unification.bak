@@ -1,5 +1,6 @@
 #lang racket
-(require (only-in "e-environment.rkt" ext-pm-env))
+(require (only-in "environment.rkt" extend-pm-env lookup-event-variable)
+         (only-in "compiler.rkt" event-variable?))
 (provide unify-args )
 
 
@@ -7,10 +8,10 @@
 
 (define (walk var env)
   (cond
-   ((symbol? var)
-    (let ((var-val-pair (assoc var env)))
-      (if var-val-pair
-          (walk (cdr var-val-pair) env)
+   ((event-variable? var)
+    (let ((val (lookup-event-variable var env )))
+      (if val
+          (walk val env)
           var)))
    (else var)))
 
@@ -21,17 +22,17 @@
 
 (define (unify var val env)
   ;lookup value of variable
-
   (let ((var-value (walk var env)))
-
     (cond
       ;variable has already been added
       ;and has same value
+      
       ((eq? var-value val) env)
       ;symbol
+      ((event-variable? var-value) (extend-pm-env var-value val env) )
       ;=> variable has not yet been added so add variable
       ;with correct value
-      ((symbol? var-value)(ext-pm-env var-value val env))
+      ((symbol? var-value)(extend-pm-env var-value val env) )
       ;is a pair
       ;unify arguments
       ((and

@@ -4,12 +4,14 @@
 
 
 (struct node ())
-(struct dependency-node node (idxval)  #:mutable)
+(struct dependency-node node (idx)  #:mutable)
 (struct hulp-node node ())
 
 ;;EVENT
 
 (struct root-node dependency-node ()  #:mutable)
+
+
 
 
 

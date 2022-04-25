@@ -2,9 +2,10 @@
 (require "../defmac.rkt"
          "../functional/deployment.rkt"
          "../functional/datastructures.rkt"
-         (only-in "../functional/compile-interpret.rkt" c-const-value)
+        
          "../logical/tokens.rkt"
-         "../functional/environment.rkt")
+         "../functional/environment.rkt"
+         "../root-env.rkt")
         
 (provide (all-defined-out))
 
@@ -41,35 +42,35 @@
 
 (define (contains-collector? collector logic-connector)
   (let loop
-    ((deployedLs (logic-connector-logical-cmpts logic-connector)))
-    (cond ((null? deployedLs) #f)
-          ((eq? (deployedL-collector (car deployedLs))
+    ((connectors (functional-node-connectors logic-connector)))
+    (cond ((null? connectors) #f)
+          ((eq? (functional-connector-app-info (car connectors))
                 collector)
-           (car deployedLs))
-          (else (loop (cdr deployedLs))))))
+           (car connectors))
+          (else (loop (cdr connectors))))))
 
 
 (define (register-deployedR-to-collector! logic-connector collector)
     
-  (set-logic-connector-logical-cmpts! logic-connector
+  (set-functional-node-connectors! logic-connector
                                       (cons collector
-                                            (logic-connector-logical-cmpts logic-connector))))
+                                            (functional-node-connectors logic-connector))))
 (define (register-events-to-collector! logic-connectors collector)
     (for/fold
         ([idx 0])
         ([logic-connector logic-connectors])
-      (let ((existing-deployedL (contains-collector? collector logic-connector)))
-        (cond (existing-deployedL
+      (let ((existing-connector (contains-collector? collector logic-connector)))
+        (cond (existing-connector
              
-               (set-deployedL-input-places! existing-deployedL
+               (set-functional-connector-input-info! existing-connector
                                             (cons idx
-                                                  (deployedL-input-places existing-deployedL))))
+                                                  (functional-connector-input-info existing-connector))))
               (else
                
-               (let ((new-deployedL (deployedL (list idx) collector)))
-                 (set-logic-connector-logical-cmpts! logic-connector
-                                                  (cons new-deployedL
-                                                        (logic-connector-logical-cmpts logic-connector)))
+               (let ((new-connector (func->logic-connector (list idx) collector)))
+                 (set-functional-node-connectors! logic-connector
+                                                  (cons new-connector
+                                                        (functional-node-connectors logic-connector)))
                 )))
         (+ idx 1))))
          
@@ -78,7 +79,7 @@
   (if   (and
          (not (null? logic-connectors))
          (not (or (for/and ([logic-connector logic-connectors])
-                   (functional-event? logic-connector))
+                   (event-node? logic-connector))
                  (and (null? (cdr logic-connectors))
                       (deployedR? (car logic-connectors))))))
         (error (format "Wrong type argument for collect* expected events or 1 deployed reactor given ~a"
@@ -87,8 +88,9 @@
             (error (format (error "Wrong type argument for collect* expected symbol given ~a" fact-name))))))
         
   
-(define (collect* logic-connector-names fact-name size collector functional-environment)
-      (let ((logic-connectors (map (lambda (var ) (lookup-var var functional-environment))
+(define (collect* logic-connector-names fact-name size collector root-env)
+      (let* ((global-env (root-env-env root-env))
+             (logic-connectors (map (lambda (var ) (lookup-var-error var (root-env-env root-env)))
                                     logic-connector-names )))
         (check-argument-type logic-connectors fact-name)
         (let ((collection-size (calculate-collection-size logic-connectors)))
@@ -118,43 +120,43 @@
 
 (defmac (add-collect1: logic-connector-names ... as: fact-name for: time-interval)
   #:keywords add-collect1: as: for:
-  #:captures functional-environment
-  (add-collect* '(logic-connector-names ...) 'fact-name time-interval  1 functional-environment))
+  #:captures root-env
+  (add-collect* '(logic-connector-names ...) 'fact-name time-interval  1 root-env))
 
 (defmac (add-collect2: logic-connector-names ... as: fact-name for: time-interval)
   #:keywords add-collect2: as: for:
-  #:captures functional-environment
-   (add-collect* '(logic-connector-names ...) 'fact-name time-interval  2 functional-environment))
+  #:captures root-env
+   (add-collect* '(logic-connector-names ...) 'fact-name time-interval  2 root-env))
 
 (defmac (add-collect3: logic-connector-names ... as: fact-name for: time-interval)
   #:keywords add-collect3: as: for:
-  #:captures functional-environment
-   (add-collect* '(logic-connector-names ...) 'fact-name time-interval  3 functional-environment))
+  #:captures root-env
+   (add-collect* '(logic-connector-names ...) 'fact-name time-interval  3 root-env))
 
 (defmac (add-collect4: logic-connector-names ... as: fact-name for: time-interval)
   #:keywords add-collect4: as: for:
-  #:captures functional-environment
-   (add-collect* '(logic-connector-names ...) 'fact-name time-interval  4 functional-environment))
+  #:captures root-env
+   (add-collect* '(logic-connector-names ...) 'fact-name time-interval  4 root-env))
 
 
 (defmac (remove-collect1: logic-connector-names ... as: fact-name )
   #:keywords remove-collect1: as: 
-  #:captures functional-environment
-   (remove-collect* '(logic-connector-names ...) 'fact-name 1 functional-environment))
+  #:captures root-env
+   (remove-collect* '(logic-connector-names ...) 'fact-name 1 root-env))
 
 (defmac (remove-collect2: logic-connector-names ... as: fact-name )
   #:keywords remove-collect2: as: 
-  #:captures functional-environment
-  (remove-collect* '(logic-connector-names ...) 'fact-name 2 functional-environment))
+  #:captures root-env
+  (remove-collect* '(logic-connector-names ...) 'fact-name 2 root-env))
 
 (defmac (remove-collect3: logic-connector-names ... as: fact-name)
   #:keywords remove-collect3: as: 
-  #:captures functional-environment
-  (remove-collect* '(logic-connector-names ...) 'fact-name 3 functional-environment))
+  #:captures root-env
+  (remove-collect* '(logic-connector-names ...) 'fact-name 3 root-env))
 
 (defmac (remove-collect4: logic-connector-names ... as: fact-name)
   #:keywords remove-collect4: as: 
-  #:captures functional-environment
-  (remove-collect* '(logic-connector-names ...) 'fact-name 4 functional-environment))
+  #:captures root-env
+  (remove-collect* '(logic-connector-names ...) 'fact-name 4 root-env))
   
   

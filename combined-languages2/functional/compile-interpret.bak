@@ -44,7 +44,7 @@
      (c-const value)]
     
     [`(,op ,opands ...)
-     (let ((c-operator (c-const-value (lookup-var op env)))
+     (let ((c-operator (c-const-value (lookup-var-val op env)))
            (c-opands (map (compile env event-name) opands)))
        (c-fun-apl
         c-operator

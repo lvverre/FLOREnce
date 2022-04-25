@@ -1,0 +1,53 @@
+#lang racket
+(require "parse-value.rkt")
+(define (prim-plus first second)
+  (if (and (nmb? first) (nmb? second))
+      (nmb (+ (nmb-val first) (nmb-val second)))
+      (error (format "+ expected two numbers"))))
+
+(define (prim-equal? first second)
+  (if (equal? first second)
+      true
+      false))
+
+
+(define (number-comparison procedure name)
+  (lambda (first second)
+    (if (and (nmb? first) (nmb? second))
+        (if (procedure (nmb-val first) (nmb-val second))
+            true
+            false)
+        (error (format "~a expected two numbers name" name)))))
+
+(define prim-smaller-then? (number-comparison < Smallerthen))
+(define prim-greater-then? (number-comparison > Greatherthen))
+(define prim-smaller-equal-then? (number-comparison <= SmallerEqthen))
+(define prim-greater-equal-then? (number-comparison >= GreaterEqthen))
+
+
+(define (prim-not first)
+  (cond ((eq? true first)
+         false)
+        ((eq? false first)
+         true)
+        (else (error (format "Not expected boolean given ~a" first)))))
+
+(define (prim-and first second)
+  (if (and (bool? first)
+           (bool? second))
+      (cond ((and (eq? true first)
+                  (eq? true second))
+             true)
+            (else false))
+      (error (format "And expects two booleans"))))
+
+(define (prim-or first second)
+  (if (and (bool? first)
+           (bool? second))
+      (cond ((or (eq? true first)
+                 (eq? true second))
+             true)
+            (else false))
+      (error (format "Or expects two booleans"))))
+
+      

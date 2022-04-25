@@ -1,70 +1,92 @@
 #lang racket
 
 (require "environment.rkt")
+(require "../primitives.rkt")
+(require "../parse-values.rkt")
 (provide (all-defined-out))
 
-(define native-map-env (new-env))
-(define native-filter-env (new-env))
+(define native-reactor-env (make-hash
+                            (list (cons '+ prim-add)
+                                  (cons '- prim-sub)
+                                  (cons '* prim-mul)
+                                  (cons '/ prim-div)
+                                  (cons 'equal? prim-equal?)
+                                  (cons '> prim-greater-then?)
+                                  (cons '< prim-smaller-then?)
+                                  (cons '<= prim-smaller-equal-then?)
+                                  (cons '>= prim-greater-equal-then?)
+                                  (cons '! prim-not)
+                                  (cons 'and prim-and)
+                                  (cons 'or prim-or))))
+ 
 
-(struct c-const (value) #:transparent)
-(struct c-event ())
-(define compiled-event (c-event))
-(struct c-fun-apl (operator operands) #:transparent)
+(define (error-wrong-syntax place syntax)
+  (error (format "~a is not allowed in ~a" syntax place)))
+
+(define (compile-reactors exprs) 
+  (define (compile-reactor-function-call op args)
+      (displayln (format "op: ~a ~a" op args))
+    (let ((compiled-op (if (symbol? op)
+                         (lookup-var-error op native-reactor-env)
+                         (error-wrong-syntax "operator function call" op)))
+          (compiled-args (map compile-reactors-argument args)))
+      (app compiled-op compiled-args)))
+  (define (compile-reactors-argument arg )
+      (displayln (format "argument: ~a" arg))
+    (match arg
+      [`(sym arg)
+       (when (not (symbol? arg))
+         (error-wrong-syntax "Inside sym" arg))
+       (sym arg)]
+      [arg
+       #:when (number? arg)
+       (nmb arg)]
+      [arg
+       #:when (string? arg)
+       (str arg)]
+      [`(pair ,first ,rest)
+       (pair (compile-reactors-argument first )
+             (compile-reactors-argument rest ))]
+      [arg
+       #:when (symbol? arg)
+       (var-exp arg)]
+      [_ (error-wrong-syntax "argument inside functional call" arg)]))
 
 
-(define (set-up-native-map)
-  (map (lambda (var val) (add-to-env! var (c-const val) native-map-env))
-       '(+ - / *)
-       (list + - / *)))
-(define (set-up-native-filter)
-  (map (lambda (var val) (add-to-env! var (c-const val) native-filter-env))
-       '(< > equal? eq? <= >=  = not and or )
-       (list < > equal? eq? <= >= = (lambda (value)
-                                      (not value))
-             (lambda (el1 el2)
-               (and el1 el2))
-             (lambda (el1 el2)
-               (or el1 el2)))))
-
-(set-up-native-map)
-(set-up-native-filter)
-
-
-
-
-
+  (define (compile-reactor-value-def expr)
+      (displayln (format "value-def: ~a" expr))
+    (match expr
+      [`(if ,pred ,then-branch ,else-branch)
+      (if-exp (compile-reactor-value-def pred)
+               (compile-reactor-value-def then-branch)
+               (compile-reactor-value-def else-branch))]
+    [`(,op ,args ...)
+     (compile-reactor-function-call op args)]
+    
+    [_ (compile-reactors-argument expr)]))
+       
+  (define (compile-reactor-body-expr expr)
+    (displayln (format "Body: ~a" expr))
+    (match expr
+      [`(def: ,def-var ,expr)
+       (let ((compiled-var (if (symbol? def-var)
+                               (var-exp def-var)
+                               (error-wrong-syntax  "first argument in def:" def-var)))
+             (compiled-expr (compile-reactor-value-def expr)))
+         (def compiled-var compiled-expr))
+         ]
+      [`(if ,pred ,then-branch ,else-branch)
+       (if-exp (compile-reactor-value-def pred)
+               (compile-reactor-value-def then-branch)
+               (compile-reactor-value-def else-branch))]
+      [`(,op ,args ...)
+       (compile-reactor-function-call op args)]
+      
+      [_ (error-wrong-syntax "body connect:as:in:" expr)]))
+  (displayln exprs)
+  (compile-reactor-body-expr exprs))
 
   
-(define ((compile env event-name) exp )
-;  (display event-name)
-  (displayln exp)
-  (match exp
-    [value
-     #:when (or (number? value) (string? value))
-     (c-const value)]
-    
-    [`(,op ,opands ...)
-     (let ((c-operator (c-const-value (lookup-var op env)))
-           (c-opands (map (compile env event-name) opands)))
-       (c-fun-apl
-        c-operator
-        c-opands))]
-    [event
-     #:when (equal? event event-name)
-     compiled-event]
-    [value
-     #:when (symbol? value)
-     (lookup-var value env)]
-    [_ (error (format "~a is not allowed in body-part" exp))]))
 
-(define (interpret exp event-value)
-  (define (process-loop exp)
-    (match exp
-      [(c-fun-apl operator opands)
-       (let ((evaluated-opands (map (lambda (opand)
-                                       (c-const-value (process-loop opand)))
-                                    opands)))
-         (c-const (apply operator evaluated-opands)))]
-      [(c-event) event-value]
-      [value value]))
-  (process-loop exp))
+
+

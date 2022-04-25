@@ -20,9 +20,9 @@
 (struct internal-node dependency-node ( predecessors) #:mutable)
 
 ;;FUNCTION WITH 1 ARGUMENT
-(struct single-function-node internal-node (body) #:mutable #:transparent)
-(define (make-single-function-node predecessor body )
-  (single-function-node  -2 (list predecessor) body ))
+(struct single-function-node internal-node (body event-var) #:mutable #:transparent)
+(define (make-single-function-node predecessor body var)
+  (single-function-node  -2 (list predecessor) body var))
 
 
 
@@ -34,7 +34,7 @@
 
 ;FILTER-NODE
 
-(struct filter-node internal-node ( body ) #:mutable )
+(struct filter-node internal-node ( body event-var) #:mutable )
 
   
 

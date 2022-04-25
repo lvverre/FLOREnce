@@ -10,18 +10,19 @@
 (provide (all-defined-out))
  (require racket/gui/base
           "../defmac.rkt"
-          rebellion/concurrency/lock)
+          )
 (require "../logical/nodes.rkt"
          "../logical/unification.rkt"
          "../logical/tokens.rkt"
          "../logical/compiler.rkt"
          "../logical/environment.rkt"
          "../functional/datastructures.rkt"
-          (prefix-in func: "../functional/compile-interpret.rkt")
+         "../parse-values.rkt"
+         
          (only-in "forall.rkt"
-                  functional-connector
-                  functional-connector-deployedR-add
-                  functional-connector-deployedR-remove)
+                  logic-connector
+                  logic-connector-deployedR-add
+                  logic-connector-deployedR-remove)
        
        )
 
@@ -54,7 +55,7 @@
 
 
 (define (remove-constraint-from-alpha-node! alpha-node)
-  (set-alpha-node-constraints! alpha-node null))
+  (set-alpha-node-constraints! alpha-node (list true)))
 
 ;makes the joins nodes and other alpha-nodes and link them together
 
@@ -79,10 +80,11 @@
 ;TODO check the variabes in the event-conditions
 (defmac (rule: name where: (event-name (parameters ...) constraints ...) ... then: then-clause)
   #:keywords rule: where: then:
-  #:captures root            
-    (let ((alpha-nodes (map (lambda (name pars constrs)
+  #:captures root-env            
+    (let* ((root (root-env-root root-env))
+           (alpha-nodes (map (lambda (name pars constrs)
                                 (let ((new-node (make-alpha-node name pars
-                                                                  (map (lambda (condition) (compile condition #t)) constrs))))
+                                                                  (compile-multiple-in-one constrs #t))))
                                  
                                   (register-to-root!  new-node root)
                                    
@@ -130,58 +132,68 @@
 
 
 
-(define (logic-propagate token node root root-lock ); events)
-
+(define (logic-propagate token node root-env ); events)
+  (define (compute-constraint event-env constraint)
+    (displayln (format "Constraint: ~a" constraint))
+      (let ((result (car (eval event-env (make-hash) constraint #f))))
+        
+        (cond ((bool? result)
+               (true-struct? result))
+              (else (error "Constraints needs to return true or false")))))
   
   (define (execute-alpha-node token alpha-node  )
+    (displayln (format  "execute alpha-nod ~a " (alpha-node-event-id  alpha-node)))
   (when (equal? (alpha-token-id token) (alpha-node-event-id alpha-node))
     (let ((event-env (unify-args (alpha-token-args token)
                                  (alpha-node-args alpha-node)
-                                 (make-immutable-hash))))
+                                 (make-hash))))
       (when event-env
-        (when (for/and ([constraint (alpha-node-constraints alpha-node)])
-                (execute constraint  condition-global-env event-env))
+        (when (compute-constraint event-env (alpha-node-constraints alpha-node))
           (update-pms-and-propagate token event-env alpha-node  ))))))
 
   
   (define (execute-join-node token opposite-partial-matches join-node  )
+    (displayln "join-node")
   (let ((constraints (join-node-constraints join-node))
         (token-partial-match-env  (beta-token-pm token)))
     (for-each
      (lambda (opposite-partial-match)     
        (let ((combined-partial-match-env (try-to-combine-env token-partial-match-env (pm-env opposite-partial-match))))
          (when combined-partial-match-env
-           (when 
-               (for/and ([constraint constraints])
-                 (execute constraint condition-global-env   combined-partial-match-env))
+           (when
+               (compute-constraint combined-partial-match-env constraints)
+               
              (update-pms-and-propagate token combined-partial-match-env join-node  )))))
      opposite-partial-matches)))
 
   
   (define (execute-production-node node token purpose  )
+    (displayln "production node")
   (when (add-token? token)
    
-    (let* ((args (map (lambda (expr)
-                        (execute expr
-                                 body-global-env
-                                 (beta-token-pm token)
+    (let* ((args   (eval (beta-token-pm token)
+                                 (make-hash)
+                                  (production-node-args node)
+                                 #f
+                                 
                                  ))
-                      (production-node-args node)))
+                     
            (token (if purpose
                       (make-alpha-token-add  (production-node-name node) args (emit-node-alive-time node))
                       (make-alpha-token-remove (production-node-name node) args))))
       
-      (propagate-from-root token  root root-lock)))); events))))
+      (propagate-from-root token root-env)))); events))))
 
-  (define (execute-functional-connector node token )
+  (define (execute-logic-connector node token )
+    (display "INSIDE LOGIC CONNECTOR")
     (let* ((order-args (alpha-node-args (beta-token-owner token)))
          (pm-env  (beta-token-pm token))
          (input (for/vector ([variable order-args])
-                  (func:c-const (lookup-event-variable  variable pm-env))))
+                  (lookup-event-variable  variable pm-env)))
          (deployedR (if (add-token? token)
-                        (functional-connector-deployedR-add node)
-                        (functional-connector-deployedR-remove node))))
-      (execute-turn deployedR  input root root-lock )))
+                        (logic-connector-deployedR-add node)
+                        (logic-connector-deployedR-remove node))))
+      (execute-turn deployedR  input root-env )))
            
 
   
@@ -224,8 +236,8 @@
     [(retract-node _ _)
      (printf (format "retract node \n"))   
      (execute-production-node node token #f  )]
-    [(functional-connector _ _ )
-     (execute-functional-connector node token )]
+    [(logic-connector _ _ )
+     (execute-logic-connector node token )]
     ))
   (propagate-to-node token node))
      
@@ -251,8 +263,8 @@
 (define for-all-partial-matches for-each)
 (define for-all-successors for-each)
 
- (define (remove-expired-facts root root-lock ); events)
-   (for-all-in-root root
+ (define (remove-expired-facts root-env ); events)
+   (for-all-in-root (root-env-root root-env)
                     (lambda (alpha-node)
                       (let-values ([(keep-pms remove-pms) (split-remove-keep-pms alpha-node)])
                         (set-filter-node-partial-matches! alpha-node keep-pms)
@@ -263,7 +275,7 @@
                                                                              alpha-node)))
                                       (logic-propagate new-token
                                                        (filter-node-successor alpha-node)
-                                                       root root-lock )); events))
+                                                       root-env )); events))
                                                             
                                                )
                                   remove-pms)))))
@@ -272,13 +284,14 @@
     
 
 ;Makes a timer that will go off to clean up the expired facts
-(define (make-timer root root-lock ); events)
+(define (make-timer root-env )
+  (let ((lock (root-lock (root-env-root root-env)))); events)
   (new timer% [notify-callback
                (lambda ()
                  
-                 (when (semaphore-try-wait? root-lock)
-                   (remove-expired-facts root root-lock ); events)
-                   (semaphore-post root-lock)))]))
+                 (when (semaphore-try-wait? lock)
+                   (remove-expired-facts root-env ); events)
+                   (semaphore-post lock)))])))
  
                                      
                                  
@@ -287,49 +300,52 @@
 ;add-fact
 ;
 
-(define (start-propagation token root-lock root ); events)
-  (semaphore-wait root-lock)
+(define (start-propagation token root-env ); events)
+  (display "start propagation")
+  (semaphore-wait (root-lock (root-env-root root-env)))
   ;(send timer start 1000)
-  (propagate-from-root token root root-lock); events)
-  (remove-expired-facts root root-lock );events))
-  (semaphore-post root-lock))
+  (propagate-from-root token root-env); events)
+  (remove-expired-facts root-env );events))
+  (semaphore-post (root-lock (root-env-root root-env))))
 
 ;propagates an event with name NAME and args -values trough the DAG
 
 
 (defmac (add: FACT for: alive-interval)
   #:keywords add: for:
-  #:captures root-lock  root 
+  #:captures root-env 
   (if (token? FACT)
       (start-propagation
        (make-alpha-token-add (token-id FACT)(token-args FACT) alive-interval)
-       root-lock
-       root
+       root-env
+       
        
       )
       (error (format "~a is not a fact" FACT))))
 (defmac (remove: FACT)
   #:keywords remove:
-  #:captures root-lock  root  
+  #:captures root-env    
   (if (token? FACT)
       (start-propagation
        (make-alpha-token-remove (token-id FACT)(token-args FACT))
-       root-lock
-       root
+       root-env
+       
        )
       (error (format "~a is not a fact" FACT))))
 
 (defmac (fact: NAME ARGS ...)
   #:keywords fact:
-  (token 'NAME '(ARGS ...)))
+  #:captures root-env
+  (token 'NAME (map (lambda (arg)
+                      (compile-arguments arg (root-env-env root-env))) '(ARGS ...) )))
      
 
-(define (propagate-from-root token root  root-lock)
+(define (propagate-from-root token root-env  )
   ;(func:fire-from-logic-graph events token)
   (for-each (lambda (node)
-              (logic-propagate token node root root-lock )
+              (logic-propagate token node root-env )
               )
-            (root-registered-nodes root)))
+            (root-registered-nodes (root-env-root root-env))))
 
 
 
@@ -342,16 +358,17 @@
 (require 
          (prefix-in  func: "../functional/nodes.rkt" )
         
-         "../functional/deployment.rkt"
-         (prefix-in func: "../functional/environment.rkt")
          
+         (prefix-in func: "../functional/environment.rkt")
+         (only-in "../eval.rkt" eval)
+         (only-in "../functional/compile-interpret.rkt" native-reactor-env)
           racket/local)
 
 (provide (all-defined-out))
 
 
 
-(define (functional-propagate nodes node-values start-idx)
+(define (functional-propagate nodes node-values start-idx root-env)
   (define (loop idx )
     
     (when (> (vector-length nodes) idx)
@@ -378,15 +395,17 @@
           
           
           ;for a function execute the function on the give value and store result
-          [(func:single-function-node idx predecessor function)
-           (let ((predecessor-value (vector-ref node-values (car predecessor))))
+          [(func:single-function-node idx predecessor function event-var)
+           (let* ((predecessor-value (vector-ref node-values (car predecessor)))
+                  (local-env (make-hash (list (cons event-var predecessor-value)))))
+                 
            ;  (displayln predecessor-value)
              (cond ((eq? 'empty predecessor-value)
                     ;;in case a filter occurred
                     (vector-set! node-values idx 'empty))
                    (else 
                     ;calculate new value and store
-                    (vector-set! node-values idx (func:interpret function predecessor-value)))))
+                    (vector-set! node-values idx (car (eval local-env (make-hash) function root-env))))))
              (loop  (+ idx 1)  )]
           
           ;for a function with random number of arguments
@@ -411,12 +430,13 @@
              (loop  (+ idx 1)  ))]
             
     
-          [(func:filter-node idx predecessor filter)
-           
-           (let ((value (vector-ref node-values (car predecessor))))
+          [(func:filter-node idx predecessor filter event-variable)
+           (display "filter-node")
+           (let* ((value (vector-ref node-values (car predecessor)))
+                 (local-env (make-hash (list (cons event-variable value)))))
              ;(displayln value)
              ;;if already been filtered out by previous filter or value is not #t by condition
-             (if (or (eq? 'empty value) (not (func:interpret filter value)))
+             (if (or (eq? 'empty value) (eq? false (car (eval local-env (make-hash)  filter root-env ))))
                  (vector-set! node-values idx 'empty)
                  ;;value allowed to pass
                  (vector-set! node-values idx value))
@@ -428,7 +448,9 @@
   (loop start-idx ))
 
 
-(define (execute-turn deployedr input root root-lock )
+
+(define (execute-turn deployedr input root-env )
+  (display "turn")
   (define ins (deployedR-ins deployedr))
   (define nodes (deployedR-dag deployedr))
   (define outs (deployedR-outs deployedr))
@@ -441,15 +463,30 @@
             [value input])
         
         (vector-set! values idx value)))
+  (displayln values)
+  (displayln outs)
+  (displayln input)
  
-  (functional-propagate  nodes values (vector-length ins))
+  (functional-propagate  nodes values (vector-length ins) root-env)
+  (displayln values)
   (let ((output  (for/vector ([idx outs])
                     (vector-ref values idx))))
                     
     (display (format "Output: ~a\n" output))
-    (for ([collector (logic-connector-logical-cmpts deployedr)])
-      
-      (put-in-collector-from-deployedR! collector output root root-lock ))))
+    (for ([connector (functional-node-connectors deployedr)])
+      (match connector
+        [(external-connector input-info app-info )
+         (let ((local-env (make-hash (for/list ([var input-info]
+                                                [val output])
+                                       (cons var val)))))
+         (eval local-env
+               (root-env-env root-env)
+               app-info
+               root-env))]
+        [(internal-connector inputinfo app-info)
+         (put-in-collector-from-deployedR! connector output root-env )]))))
+       
+     
   
               
 ;(define (turn: deployedr  input)
@@ -457,21 +494,24 @@
 ;  (execute-turn deployedr
 ;                           input))
 
-
-(defmac (fire name value)
+(require "../root-env.rkt")
+(defmac (fire env-root name value)
   #:keywords fire
-  #:captures root-lock  root functional-environment
-  (let ((event (func:lookup-var 'name functional-environment)))
-    (for ([deployement (functional-event-functional-cmpnts event)])
-      (let* ((deployedr (functional-cmpnt-deployedR deployement))
-             (input (make-vector (vector-length (deployedR-ins deployedr))
-                                'empty)))
-        (for ([input-idx (functional-cmpnt-input-idxs deployement)])
-          (vector-set! input input-idx value))
-        
-        (execute-turn deployedr input root root-lock )))
-    (for ([logical-cmpnt (logic-connector-logical-cmpts event)])
-      (put-in-collector-from-event! logical-cmpnt value root root-lock ))))
+  #:captures   env-root
+  (let ((env (root-env-env env-root)))
+    (display "INSIDE TURN")
+    (let ((event name));(func:lookup-var-error name env)))
+      (for ([deployement (functional-node-connectors event)])
+        (match deployement
+          [(func->func-connector input-idxs deployedr)
+           (let ((input (make-vector (vector-length (deployedR-ins deployedr))
+                                     'empty)))
+             (for ([input-idx input-idxs])
+               (vector-set! input input-idx value))
+             (execute-turn deployedr input env-root ))]
+          [(func->logic-connector _ _)
+           (display "put in collector from event")
+           (put-in-collector-from-event! deployement value env-root )])))))
 
 
 
@@ -480,28 +520,28 @@
 ;PROPAGATION BETWEEN GRAPHS
 ;
 
-(define (propagate-to-logic-graph collector full-collection root root-lock )
+(define (propagate-to-logic-graph collector full-collection root-env  )
+  (display "Propagate to logic graph")
   (let ((token (if (add-fact-collector? collector)
                    (make-alpha-token-add (fact-collector-fact-name collector)
-                                         (map func:c-const-value (vector->list full-collection))
+                                         (vector->list full-collection)
                                          (add-fact-collector-time-interval collector))
                    (make-alpha-token-remove (fact-collector-fact-name collector)
-                                            (map func:c-const-value (vector->list full-collection))))))
-    (start-propagation token  root-lock root )))
+                                            (vector->list full-collection)))))
+    (start-propagation token root-env )))
 
-(define (put-in-collector-from-event! deployedL value root root-lock )
-  (let ((idxs-to-update (deployedL-input-places deployedL))
-        (collector (deployedL-collector deployedL)))
+(define (put-in-collector-from-event! func->logic-connector value root-env )
+  (let ((idxs-to-update (functional-connector-input-info func->logic-connector))
+        (collector (functional-connector-app-info func->logic-connector)))
     (for ([idx idxs-to-update])
       (let ((full-collection (put-in-collector!  collector value idx)))
         (when full-collection
           
-          (propagate-to-logic-graph collector full-collection
-                                    root root-lock ))))
+          (propagate-to-logic-graph collector full-collection  root-env ))))
     ))
           
 
-(define (put-in-collector-from-deployedR! collector values root root-lock )
+(define (put-in-collector-from-deployedR! collector values root-env  )
   (let loop-put-in-colletor
     ([idx 0])
  
@@ -516,7 +556,7 @@
               (when full-collection
               
               (propagate-to-logic-graph collector full-collection
-                                        root root-lock ))))
+                                        root-env ))))
            
           (loop-put-in-colletor (+ idx 1)))))
   

@@ -1,6 +1,6 @@
 #lang racket
 (provide (all-defined-out))
-(struct deployedL (input-places  collector) #:mutable)
+
 
 
 (define put-collection! vector-set!)
@@ -17,7 +17,14 @@
 
 
 
-(struct logic-connector (logical-cmpts) #:mutable)
-(struct deployedR logic-connector (ins dag outs) #:transparent)
-(struct functional-event logic-connector (functional-cmpnts ) #:mutable #:transparent)
-(struct functional-cmpnt (input-idxs deployedR) #:mutable #:transparent)
+(struct functional-node (connectors) #:mutable)
+(struct deployedR functional-node (ins dag outs) #:transparent)
+(struct event-node functional-node () #:mutable #:transparent)
+(struct functional-connector (input-info app-info) #:mutable #:transparent)
+(struct internal-connector functional-connector ())
+(struct func->func-connector internal-connector ())
+(struct func->logic-connector internal-connector ())
+(struct external-connector functional-connector ())
+
+(struct view (output body))
+(struct update (input body))

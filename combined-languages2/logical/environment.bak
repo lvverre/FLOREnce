@@ -1,5 +1,6 @@
 #lang racket
-(require "token.rkt")
+(require  "nodes.rkt")
+(require racket/hash)
 (provide (all-defined-out))
 
 
@@ -12,21 +13,23 @@
                              (list (cons '+ +) (cons '- -) (cons 'display display))))
 (define condition-global-env (map (lambda (x)
                                     x)
-                                  (list (cons 'and (lambda el
+                                  (list (cons '- -)
+                                        (cons '+ +)
+                                        (cons 'and (lambda el
+                                                     
                                                      ( andmap (lambda (el) el) el))) (cons 'not (lambda (el)
                                                                                      (not el)))(cons 'quote (lambda (el)
                                                        (quote el))) (cons 'or (lambda opnds (ormap (lambda (el) el) opnds))) (cons '= =) (cons '>= >=) (cons '<= <=) (cons '> >) (cons '< <) (cons 'eq? eq?) (cons 'equal? equal?))))
 
 
-(define (lookup-global-var env var)
-
+(define (lookup-global-variable env var)
   (let ((val-env-pair (assoc var env)))
     (if val-env-pair
         (cdr val-env-pair)
-        (error (format "global-variable: ~a not found" var)))))
+        (error (format "variable: ~a not found" var)))))
 
-(define (ext-global-env env var val)
-  (if (occurs? val var env)
+(define (extend-global-env env var val)
+  (if (assoc val env)
       #f
       (cons  (cons var val) env)))
 
@@ -35,76 +38,72 @@
 ;
 
 
+(struct pm (env ) #:mutable)
+(struct alpha-pm pm (expiration-time) #:mutable #:transparent)
+(define (make-partial-match-env)
+  (make-hash))
+(define (lookup-event-variable var env)
+  (if (hash-has-key? env var)
+      (hash-ref env var)
+      #f))
+(define (extend-pm-env var val env)
+  (hash-set! env var val))
 
-(struct pm (env time next previous) #:transparent #:mutable)
-(define (make-pm env time)
-  (pm env time '() '()))
-(define get-var car)
-(define get-val cdr)
+
+(define (partial-match-occurs? env node)
+  (let loop ((pms (filter-node-partial-matches node)))
+    (cond ((null? pms)
+           #f)
+          ((equal?  (pm-env (car pms)) env)
+           (car pms))
+          (else (loop (cdr pms))))))
+
+(define (add-partial-match! pm node)
+  (set-filter-node-partial-matches! node
+                                    (cons pm 
+                                          (filter-node-partial-matches node))))
+
 
 
 ;check if pm env correspond to other pm-env
-(define (pm-contains-pm? pm-contained pm-contains)
-  ;taken envs
 
-     (let ((contained-pm-env (pm-env pm-contained))
-           (contains-pm-env (pm-env pm-contains)))
-       ;for every element in token env
-       (let ((z (for/and ([var-val-pair contained-pm-env])
-                 ;check if it corresponds to the value in the contains-pm
-                  (and (occurs? (get-var var-val-pair) contains-pm-env)
-                       (equal? (lookup-pm-var contains-pm-env (get-var var-val-pair))
-                               (get-val var-val-pair))))))
-        
-         z)
-       ))
+      
 
-;check if token env correspond to pm-env
-(define (pm-contains-token? token partial-match)
-  
-  (pm-contains-pm? (beta-token-pm token) partial-match))
-        
-
-(define (remove-partial-matches token partial-matches)
-  (filter
-   (lambda (partial-match)
-     (pm-contains-token? token partial-match))
-   partial-matches))
+(define (remove-partial-matches! env node)
+  (let* ((partial-matches (filter-node-partial-matches node))
+         (filtered-partial-matches
+          (filter
+           (lambda (partial-match)
+             (not (equal? env (pm-env partial-match))))
+           partial-matches)))
+    (set-filter-node-partial-matches! node filtered-partial-matches)
+    (not (= (length partial-matches) (length filtered-partial-matches)))))
+    
 
 
-(define (occurs? var env)
-  (assoc var env))
-
-(define empty-pm-env '())
-
-(define (ext-pm-env var val env)
- 
-  (if (occurs? var env)
-      #f
-      (cons  (cons var val) env)))
 
 
-(define (combine-env-or-false env-1 env-2)     
+(define (try-to-combine-env env-1 env-2 )     
     (if (possible-to-combine? env-1 env-2)
         (combine-pm-env env-1 env-2)
         #f))
 
 (define (possible-to-combine? env-1 env-2)
-  (cond ((null? env-1)
-         (append env-1 env-2))
-        ((or (not (occurs?  (get-var (car env-1)) env-2))
-             (equal? (lookup-pm-var env-2 (get-var (car env-1))) (get-val (car env-1))))
-         (possible-to-combine? (cdr env-1) env-2 ))
-        (else #f)))
+  (andmap (lambda (e)
+           e )
+          (hash-map
+           env-1
+          (lambda (key value)
+            (if (hash-has-key? env-2 key)
+                (equal? value (hash-ref env-2 key))
+                #t))
+          )))
+         
+  
 
 (define (combine-pm-env env-1 env-2)
-  (remove-duplicates (append env-1 env-2)))
+  (hash-union env-1 env-2 #:combine/key (lambda (k v1 v2) v1)))
+           
 
 
 
-
-(define (lookup-pm-var env var)
-  (let ((val-env-pair (occurs? var env)))
-    (if val-env-pair
-        (cdr val-env-pair)
-        (error (format "variable: ~a not found" var))))) 

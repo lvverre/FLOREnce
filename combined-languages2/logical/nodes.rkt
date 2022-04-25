@@ -2,11 +2,11 @@
 
 (provide (all-defined-out))
 ;ROOT
-(struct root (registered-nodes) #:mutable #:transparent)
+(struct root (registered-nodes lock) #:mutable #:transparent)
 (define (register-to-root! alpha-node root)
   (set-root-registered-nodes! root (cons alpha-node (root-registered-nodes root))))
 (define (make-root)
-  (root '()))
+  (root '() (make-semaphore 1)))
 (define (for-all-in-root root function)
   (for-each function
             (root-registered-nodes root)))

@@ -9,7 +9,12 @@
   (hash-set! env var val))
       
 
-(define (lookup-var var env)
+(define (lookup-var-false var env)
+  (if (hash-has-key? env var)
+      (hash-ref env var)
+      #f))
+
+(define (lookup-var-error var env)
    (if (hash-has-key? env var)
        (hash-ref env var)
        (error (format "~a is not defined" var))))

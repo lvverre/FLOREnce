@@ -47,7 +47,11 @@
       (hash-ref env var)
       #f))
 (define (extend-pm-env var val env)
-  (hash-set env var val))
+  (displayln env)
+  (displayln var)
+  (displayln val)
+  (displayln (immutable? env))
+  (hash-set! env var val))
 
 
 (define (partial-match-occurs? env node)
@@ -102,7 +106,10 @@
   
 
 (define (combine-pm-env env-1 env-2)
-  (hash-union env-1 env-2 #:combine/key (lambda (k v1 v2) v1)))
+  (let ((new-env-1 (hash-copy env-1))
+        (new-env-2 (hash-copy env-2)))
+  (hash-union! new-env-1 new-env-2 #:combine/key (lambda (k v1 v2) v1))
+    new-env-1))
            
 
 
