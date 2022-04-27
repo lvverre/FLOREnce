@@ -128,7 +128,7 @@
 
 (define (make-root-node! name env)
   (let ((new-node (root-node -2)))
-    (add-to-env! name new-node env)
+    (add-to-local-env! name new-node env)
     new-node))
 
 
@@ -137,7 +137,7 @@
 
 (define (make-map-node event-name expr env)
   (if (symbol? event-name)
-      (let ((predecessor (lookup-var-error event-name env)))
+      (let ((predecessor (lookup-local-var-error event-name env)))
         (cond (predecessor
              ;  (display "hier")
                (make-single-function-node  predecessor (list (compile-reactors expr)) event-name))
@@ -148,7 +148,7 @@
 (define (define-node name node env)
   (cond ((and (symbol? name)
               (node? node))
-         (add-to-env! name node env))
+         (add-to-local-env! name node env))
         ((symbol? name)
          (error (format "def: accepts map: or filter: or or: as second argument not ~a" node)))
         (else
@@ -157,7 +157,7 @@
 
 (define (make-filter-node event-name expr env)
   (if (symbol? event-name)
-      (let ((predecessor (lookup-var-error event-name env)))
+      (let ((predecessor (lookup-local-var-error event-name env)))
         (cond (predecessor
                (filter-node -2 (list predecessor) (compile-reactors expr) event-name))
               (else
@@ -167,8 +167,8 @@
 
 (define (make-or-node event-name-left event-name-right env)
   ;(display env)
-  (let ((left-predecessor (lookup-var-error event-name-left env))
-        (right-predecessor (lookup-var-error event-name-right env)))
+  (let ((left-predecessor (lookup-local-var-error event-name-left env))
+        (right-predecessor (lookup-local-var-error event-name-right env)))
     (or-node -2 (list left-predecessor right-predecessor))))
          
   
@@ -178,7 +178,7 @@
   (let ((env (root-env-env root-env)))
   (if (env-contains?  'name env)
       (error (format "Reactor with ~a already defined" 'name))
-      (let* ((node-env (new-env)) 
+      (let* ((node-env (new-local-env)) 
              (in-nodes (map (lambda (name)
                               (make-root-node! name node-env))
                             '(ins ...))))
@@ -197,7 +197,7 @@
                     (define-node 'event-name node node-env)))]
           (begin
             exprs ...
-            (let* ((out-nodes (map (lambda (out-name) (lookup-var-error out-name node-env)) '(outs ... )))
+            (let* ((out-nodes (map (lambda (out-name) (lookup-local-var-error out-name node-env)) '(outs ... )))
                    (sorted (topological-sort out-nodes in-nodes)))
               (for ([node sorted])
                 (when (internal-node? node)

@@ -26,5 +26,5 @@
 (struct func->logic-connector internal-connector ())
 (struct external-connector functional-connector ())
 
-(struct view (output body))
+(struct view (input body output))
 (struct update (input body))

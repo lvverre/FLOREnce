@@ -1,0 +1,42 @@
+#lang reader "language-plus-reader.rkt"
+(main:
+
+ (model: event-milk)
+ (view: allergic with:
+        (input: name)
+        (def: allergic-radio-box (make-radio-box name (pair "yes" "no") alg-panel ))
+        (def: event (get-event allergic-radio-box))
+        (output: event))
+ (panel (button 
+
+ (init: allergic with: (input: "MILK: ") (output: event-milk)))
+
+
+(update: enable-disable-button with: (input: button state)
+         (change-enable button state))
+
+
+(reactor: change-state-button
+          (in: button state)
+          (def: state-in-boolean (map: state (if (equal? "yes" state)
+                                                 true
+                                                 false)))
+          (out: button state-in-boolean))
+
+(rule: allergic
+       where:
+       (BUTTON-MILK (?button ))
+       (ALLERGIC-MILK (?state))
+       then:
+       (add: (fact: CHANGE-BUTTON ?button ?state) for: -1))
+
+(forall: (CHANGE-BUTTON (?button ?state) )
+         (add-deploy: change-state-button as: deployed-change-button)
+         (remove-deploy: do-nothing as: deployed-nothing))
+
+(connect: deployed-change-button with: enable-disable-button)
+
+(add: (fact: BUTTON-MILK add-button-Milk-Shake ) for: -1)
+(add: (fact: BUTTON-MILK remove-button-Milk-Shake  ) for: -1)
+
+(add-collect1: event-milk as: ALLERGIC-MILK for: 200)

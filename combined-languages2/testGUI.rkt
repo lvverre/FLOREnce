@@ -29,13 +29,15 @@
 
 
 
-(define (prim-horizontal-panel env parent style alignment)
-  (new horizontal-panel% (paren  parent)
-       (style style) (alignment alignment)))
+(define (prim-h-panel env parent ) ;alignment)
+   	 
 
-(define (prim-vertical-panel env parent style alignment )
+  (h-panel (new horizontal-panel% #|(style (list 'auto-hscroll 'auto-vscroll))|# (alignment (list 'left 'top) )(parent  (widget-val parent)))))
+        ;(alignment alignment))
+(define (prim-v-panel env parent); alignment )
+  (display parent)
   (if (parent? parent)
-      (new vertical-panel% (parent parent) (style style) (alignment alignment))
+      (v-panel (new vertical-panel% #|(style (list 'auto-hscroll 'auto-vscroll))|# (alignment (list 'left 'top)) (parent (widget-val parent) ))); (alignment alignment))
       (error "wrong arguments")))
 
 (define (prim-frame env label width height)
@@ -149,23 +151,30 @@
 
 
         
-      
+(define (change-label env message new-label)
+  (if (and (message? message)
+           (str? new-label))
+      (send (widget-val message) set-label (str-val new-label))
+      (error (format "change-label expects message and string as value"))))
+
+
 
 (define native-gui-environment (make-hash (list
                                            (cons 'make-radio-box prim-radio-box)
-                                           (cons 'make-message 'prim-message)
+                                           (cons 'make-message prim-message)
                                            (cons 'change-gauge-value! prim-gauge-value!)
                                            (cons 'change-gauge-range! prim-gauge-range!)
                                            (cons 'make-gauge prim-gauge)
                                            (cons 'change-enable prim-enable)
                                            (cons 'make-button prim-button)
                                            (cons 'make-frame prim-frame)
-                                           (cons 'make-h-panel 'prim-h-panel)
-                                           (cons 'make-v-panel 'prim-v-panel)
+                                           (cons 'make-h-panel prim-h-panel)
+                                           (cons 'make-v-panel prim-v-panel)
                                            (cons 'get-event get-event)
                                            (cons 'true true)
                                            (cons 'false false)
                                            (cons 'empty empty)
+                                           (cons 'change-label! change-label)
                                            (cons '+ prim-add))))
 
 

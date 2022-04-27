@@ -50,6 +50,9 @@
              (new-world-connector (external-connector arguments body)))
         (when (not (= (length arguments) (vector-length (deployedR-outs deployed-reactor))))
           (error (format "Connect:in:out: -> Number of outputs of reactor is not equal to the number of in: arguments")))
+        (when (or (not (deployedR? deployed-reactor))
+                  (not (update? update)))
+          (error (format "Connect:in:out -> expects deployed reactor name and update function")))
         (set-functional-node-connectors! deployed-reactor (cons new-world-connector (functional-node-connectors deployed-reactor))))))   
     
     
@@ -83,16 +86,18 @@
           
       
       
-
-
-(define (compile-update exprs) 
-  (define (compile-update-function-call op args)
+ (define (compile-update-function-call op args)
     (let ((compiled-op (if (symbol? op)
-                         (lookup-var-error op native-gui-environment)
+                         (lookup-local-var-error op native-gui-environment)
                          (error-wrong-syntax "operator function call" op)))
-          (compiled-args (map compile-update-argument args)))
+          (compiled-args (map compile-argument args)))
       (app compiled-op compiled-args)))
-  (define (compile-update-argument arg )
+  (define (compile-if-expr pred then-branch else-branch)
+    (if-exp (compile-argument pred)
+             (compile-argument  then-branch)
+             (compile-argument  else-branch)))
+  
+  (define (compile-argument    arg )
     (match arg
       [`(sym arg)
        (when (not (symbol? arg))
@@ -105,31 +110,36 @@
        #:when (string? arg)
        (str arg)]
       [`(pair ,first ,rest)
-       (pair (compile-update-argument first )
-             (compile-update-argument rest ))]
+       (pair (compile-argument first )
+             (compile-argument rest ))]
       [arg
        #:when (symbol? arg)
        (var-exp arg)]
+     
       [`(,op ,args ...)
        (compile-update-function-call op args)]
       [_ (error-wrong-syntax "argument inside functional call" arg)]))
+
+(define (compile-update exprs )
+ 
   
        
   (define (compile-update-body-expr expr)
     (match expr
       [`(def: ,def-var ,expr)
        (let ((compiled-var (if (symbol? def-var)
-                               (var-exp def-var)
+                               def-var
                                (error-wrong-syntax  "first argument in def:" def-var)))
-             (compiled-expr (compile-update-argument expr)))
-         (def compiled-var compiled-expr))
-         ]
+             (compiled-expr (compile-argument expr)))
+         (def compiled-var compiled-expr))]
       [`(set: ,set-var ,expr)
        (let ((compiled-var (if (symbol? set-var)
                                set-var
                                (error-wrong-syntax "first argument in set:" set-var)))
-             (compiled-expr (compile-update-argument expr)))
+             (compiled-expr (compile-argument expr)))
          (set compiled-var compiled-expr))]
+       [`(if ,pred ,then-branch ,else-branch)
+       (compile-if-expr pred then-branch else-branch)]
       [`(,op ,args ...)
        (compile-update-function-call op args)]
       [_ (error-wrong-syntax "body connect:as:in:" expr)]))

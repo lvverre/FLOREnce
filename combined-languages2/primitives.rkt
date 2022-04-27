@@ -16,13 +16,15 @@
 (define prim-mul (number-operation * '*))
 
 (define (prim-equal? env first second)
-  (displayln "EQUAL?")
-  (display (equal? first second))
-  (display first)
-  (display second)
+ 
   (if (equal? first second)
       true
       false))
+
+(define (prim-string-append env first second)
+  (if (and (str? first) (str? second))
+      (string-append (str-val first) (str-val second))
+      (error "String-append only accepts strings")))
 
 
 (define (number-comparison procedure name)

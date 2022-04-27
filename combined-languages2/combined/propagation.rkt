@@ -135,7 +135,7 @@
 (define (logic-propagate token node root-env ); events)
   (define (compute-constraint event-env constraint)
     (displayln (format "Constraint: ~a" constraint))
-      (let ((result (car (eval event-env (make-hash) constraint #f))))
+      (let ((result (car (eval (func:make-env event-env) constraint #f))))
         
         (cond ((bool? result)
                (true-struct? result))
@@ -171,8 +171,8 @@
     (displayln "production node")
   (when (add-token? token)
    
-    (let* ((args   (eval (beta-token-pm token)
-                                 (make-hash)
+    (let* ((args   (eval (func:make-env (beta-token-pm token))
+                                 
                                   (production-node-args node)
                                  #f
                                  
@@ -369,6 +369,7 @@
 
 
 (define (functional-propagate nodes node-values start-idx root-env)
+  (define global-env (root-env-env root-env))
   (define (loop idx )
     
     (when (> (vector-length nodes) idx)
@@ -405,7 +406,7 @@
                     (vector-set! node-values idx 'empty))
                    (else 
                     ;calculate new value and store
-                    (vector-set! node-values idx (car (eval local-env (make-hash) function root-env))))))
+                    (vector-set! node-values idx (car (eval  (func:make-env local-env (func:get-local-env global-env model)) function root-env))))))
              (loop  (+ idx 1)  )]
           
           ;for a function with random number of arguments
@@ -436,7 +437,7 @@
                  (local-env (make-hash (list (cons event-variable value)))))
              ;(displayln value)
              ;;if already been filtered out by previous filter or value is not #t by condition
-             (if (or (eq? 'empty value) (eq? false (car (eval local-env (make-hash)  filter root-env ))))
+             (if (or (eq? 'empty value) (eq? false (car (eval (func:make-env local-env (func:get-local-env global-env model))  filter root-env ))))
                  (vector-set! node-values idx 'empty)
                  ;;value allowed to pass
                  (vector-set! node-values idx value))
@@ -479,8 +480,8 @@
          (let ((local-env (make-hash (for/list ([var input-info]
                                                 [val output])
                                        (cons var val)))))
-         (eval local-env
-               (root-env-env root-env)
+         (eval (func:make-env local-env
+               (func:get-local-env (root-env-env root-env) model))
                app-info
                root-env))]
         [(internal-connector inputinfo app-info)
@@ -542,9 +543,10 @@
           
 
 (define (put-in-collector-from-deployedR! collector values root-env  )
+  (let ((collector (functional-connector-app-info collector)))
   (let loop-put-in-colletor
     ([idx 0])
- 
+    
     (when (< idx (vector-length values))
       (let ((value (vector-ref values idx)))
         (when (not (eq? 'empty value))
@@ -560,7 +562,7 @@
            
           (loop-put-in-colletor (+ idx 1)))))
   
-        )
+        ))
             
     
 

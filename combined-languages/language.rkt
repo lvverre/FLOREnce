@@ -38,7 +38,7 @@
 ;   (define eternity -1)
    (define timer (make-timer root root-lock ))
    (define functional-environment (new-env))
-   
+   (display (list exps ...))
    (add-to-env!  'e1 (functional-event '() '()) functional-environment)
    (add-to-env! 'e2 (functional-event '() '()) functional-environment)
    

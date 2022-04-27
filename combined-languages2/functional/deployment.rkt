@@ -38,7 +38,15 @@
                          (if (event-node? event)
                              event
                              (error (format "Deploy:with:as: needs event as argument gotten ~a" event)))))
-                     '(event-names ...)))
+                     '(event-names ...))))
+    (when (not (reactor? reactor))
+      (error (format "Deploy expects name of reactor")))
+    (for ([event events])
+      (when (not (event-node? event))
+        (error (format "Deploye expects name of events"))))
+    (let (
+      
+          
         
         (deployed-reactor     (deployedR
                                '()
@@ -46,6 +54,7 @@
                                (reactor-dag reactor)
                                (reactor-outs reactor)
                                          )))
+   
   
     (add-to-env! 'new-name deployed-reactor env)
   
@@ -59,7 +68,7 @@
           (+ idx 1))
         (error (format "Reactor needs ~a events given ~a"
                        (vector-length (reactor-ins reactor))
-                       (length events))))))
+                       (length events)))))))
 
 
 

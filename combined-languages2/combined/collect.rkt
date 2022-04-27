@@ -53,7 +53,7 @@
 (define (register-deployedR-to-collector! logic-connector collector)
     
   (set-functional-node-connectors! logic-connector
-                                      (cons collector
+                                      (cons (func->logic-connector 0 collector)
                                             (functional-node-connectors logic-connector))))
 (define (register-events-to-collector! logic-connectors collector)
     (for/fold

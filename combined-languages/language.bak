@@ -7,14 +7,15 @@
          (only-in "functional/reactor.rkt" reactor:)
          (only-in "functional/deployment.rkt" deploy: functional-event)
          (only-in "functional/compile-interpret.rkt" c-const)
+         (only-in "../combination/forall2.rkt" forall:)
          "functional/environment.rkt" 
          ;(only-in "logic/tokens.rkt" fact? add-fact? remove-fact? get-fact-name get-fact-arguments alpha-token-args)
 
          "logic/nodes.rkt" 
-         "logic/logic-language.rkt"
-         ;"combination/forall.rkt"
-         )
-(provide define + - lambda set! display > < >= <= = equal? eq?
+         "logic/logic-language.rkt")
+      
+         
+(provide 
          add: remove: fact: rule: 
          ;forall:
          c-const

@@ -17,6 +17,7 @@
                                   (cons '>= prim-greater-equal-then?)
                                   (cons '! prim-not)
                                   (cons 'and prim-and)
+                                  (cons 'string-append prim-string-append)
                                   (cons 'or prim-or))))
  
 
@@ -27,7 +28,7 @@
   (define (compile-reactor-function-call op args)
       (displayln (format "op: ~a ~a" op args))
     (let ((compiled-op (if (symbol? op)
-                         (lookup-var-error op native-reactor-env)
+                         (lookup-local-var-error op native-reactor-env)
                          (error-wrong-syntax "operator function call" op)))
           (compiled-args (map compile-reactors-argument args)))
       (app compiled-op compiled-args)))
@@ -50,20 +51,17 @@
       [arg
        #:when (symbol? arg)
        (var-exp arg)]
+      [`(if ,pred ,then-branch ,else-branch)
+       (if-exp (compile-reactors-argument pred)
+               (compile-reactors-argument then-branch)
+               (compile-reactors-argument else-branch))]
+      [`(,op ,args ...)
+       (compile-reactor-function-call op args)]
+      
       [_ (error-wrong-syntax "argument inside functional call" arg)]))
 
 
-  (define (compile-reactor-value-def expr)
-      (displayln (format "value-def: ~a" expr))
-    (match expr
-      [`(if ,pred ,then-branch ,else-branch)
-      (if-exp (compile-reactor-value-def pred)
-               (compile-reactor-value-def then-branch)
-               (compile-reactor-value-def else-branch))]
-    [`(,op ,args ...)
-     (compile-reactor-function-call op args)]
-    
-    [_ (compile-reactors-argument expr)]))
+ 
        
   (define (compile-reactor-body-expr expr)
     (displayln (format "Body: ~a" expr))
@@ -72,17 +70,12 @@
        (let ((compiled-var (if (symbol? def-var)
                                (var-exp def-var)
                                (error-wrong-syntax  "first argument in def:" def-var)))
-             (compiled-expr (compile-reactor-value-def expr)))
+             (compiled-expr (compile-reactors-argument expr)))
          (def compiled-var compiled-expr))
          ]
-      [`(if ,pred ,then-branch ,else-branch)
-       (if-exp (compile-reactor-value-def pred)
-               (compile-reactor-value-def then-branch)
-               (compile-reactor-value-def else-branch))]
-      [`(,op ,args ...)
-       (compile-reactor-function-call op args)]
       
-      [_ (error-wrong-syntax "body connect:as:in:" expr)]))
+      
+      [_ (compile-reactors-argument expr)]))
   (displayln exprs)
   (compile-reactor-body-expr exprs))
 

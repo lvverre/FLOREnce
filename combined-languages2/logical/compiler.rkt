@@ -18,19 +18,10 @@
        ))
 ;check if a symbol is an event-variable
 (define (event-variable? variable)
-  (let ((variable-string (symbol->string variable)))
-    (event-variable-string? variable-string)))
+  (and (symbol? variable)
+       (let ((variable-string (symbol->string variable)))
+         (event-variable-string? variable-string))))
 
-
-
-
-;GLOBAL VARIABLE
-;global variables are from the form x
-;can't contain "?"
-
-(define (global-variable? variable)
-  (let ((variable-string (symbol->string variable)))
-    (not (string-contains? (substring variable-string 0 1) "?"))))
 
 
 (define native-reactor-env (make-hash
@@ -45,6 +36,8 @@
                                   (cons '>= prim-greater-equal-then?)
                                   (cons '! prim-not)
                                   (cons 'and prim-and)
+                                  (cons 'true  true)
+                                  (cons 'false false)
                                   (cons 'or prim-or))))
 
 
@@ -100,12 +93,9 @@
       [`(sym ,val)
        #:when (symbol? val)
        (sym val)]
-      [_ (compile-app-val expr condition-part)]))
-
-  (define (compile-app-val expr condition-part)
-    (match expr
+     
     [`(,op ,args ...)
-     (let ((compiled-operator (lookup-var-error op native-reactor-env ))
+     (let ((compiled-operator (lookup-local-var-error op native-reactor-env ))
            (compiled-args (map (lambda (oprnd)
                                  (compile-args oprnd condition-part))
                                args)))
@@ -116,7 +106,7 @@
      #:when (symbol? var)
      (var-exp var)]
     [_  (error (format "wrong expression: ~a" expr))]))
-  (compile-app-val expr condition-part))
+  (compile-args expr condition-part))
 
 
 #|

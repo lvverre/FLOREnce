@@ -1,0 +1,52 @@
+#lang racket
+(define (new-env)
+  '())
+(define (add-to-env! var val env)
+  (dict-set! env var val )
+  env)
+(define (add-to-env var val env)
+  (dict-set env var val ))
+
+(define (update-env! var val env)
+  (dict-set! env var val ))
+(define (update-env var val env)
+  (dict-set env var val ))
+(define (initiate-error error-expr)
+  (error (format "main: -> ~a" error-expr)))
+
+(define (lookup-var var env failure)
+  (dict-ref env var failure))
+
+(define (lookup-var-false var env)
+  (lookup-var var env #f))
+(define (lookup-var-error var env)
+  (lookup-var var env (lambda ()
+                        (error (format "~a is not defined for this expression" var)))))
+
+(define init-env (for/fold ([env (new-env)])
+                           ([var '(true false undefined empty)]
+                            [val (list true false undefined empty)])
+                   (add-to-env! var val env)))
+
+(define (initiate args exps root-env)
+  (let ((env init-env)
+        (has-duplicate? (check-duplicates args)))
+      (when has-duplicate?
+        (initiate-error "model has duplicate argument name" ~a))
+    (for ([arg args])
+      (when (not (symbol? arg))
+        (initiate-error "expected symbol as argument in model"))
+      (add-to-env! arg undefined init-env))
+    (eval-body-main exps init-env)))
+
+
+(define (eval-body-main exps init-env)
+  (for/fold ([local-env init-env])
+            ([exp exprs])
+    (eval-view exp local-env)))
+
+(define (eval-view exp env)
+  (define (main-exp exp env)
+    (match exp
+      [`(view: ,view-name with: (input: ins ...) exprs ...)
+       

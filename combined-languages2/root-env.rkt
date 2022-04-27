@@ -1,3 +1,6 @@
 #lang racket
 (provide (all-defined-out))
-(struct root-env (root env) #:transparent)
+
+(define model 1)
+(define reactive 0)
+(struct root-env (root env) #:mutable #:transparent)

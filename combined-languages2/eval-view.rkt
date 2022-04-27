@@ -12,7 +12,50 @@
 
 (provide (all-defined-out))
 
-(defmac (view: view-name with:
+(define (eval-view view-name ins outs exprs env)
+  (when (not (symbol? view-name))
+    (error (format "view:with: expected a variable")))
+  (when (local-env-contains? view-name env)
+    (error (format "~a is already defined" view-name)))
+  (for/list ([in ins])
+    (when (not (symbol? in))
+      (error (format "view:with:output: expected for in: al variables given ~a" in)))
+    (compile-argument in))
+  (for ([out outs])
+    (when (not (symbol? out))
+      (error (format "view:with:output: expected for out: al variables given ~a" out)))
+    )
+  (let ((compiled-view (compile-update exprs)))
+    (add-to-local-env! view-name
+                 (view ins compiled-view outs)
+                 env)))
+
+(define (eval-init view-name ins outs root-env main-env)
+
+  (let* ((model-env (get-local-env (root-env-env root-env) model))
+         (in-values    (eval (make-env model-env) (map compile-argument ins) root-env)))
+    (let* ((view (lookup-local-var-error view-name main-env))
+           (view-input-vars (view-input view)))
+      (when (or (not (= (length view-input-vars) (length ins)))
+                (not (= (length (view-output view)) (length outs))))
+        (error "Init:as: expects the same number of global-variables as outputted local variables"))
+      (let* ((local-env (new-local-env)))
+        (for  ([var view-input-vars]
+               [value in-values])
+          (add-to-local-env! var value local-env))
+        
+      (eval (make-env local-env  model-env) (view-body view)   root-env)
+        (let ((view-outs (view-output view))) 
+        
+      (for ([out outs]
+            [output-view view-outs])
+        (when (not (symbol? out))
+          (error "Init:with: expects variables as output"))
+        (update-local-env! out (lookup-local-var-error output-view local-env) model-env)))))))
+      
+  
+
+#|(defmac (view: view-name with:
                (output: outs ...)
                exprs ...)
   #:keywords view: with: output: 
@@ -28,7 +71,7 @@
     (let ((compiled-view (compile-update '(exprs ...))))
       (add-to-env! 'view-name
                    (view '(outs ...) compiled-view)
-                   env))))
+                   env))))|#
     
 #|
 (define (typeOf function-name type type-function arg)
