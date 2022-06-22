@@ -1,0 +1,294 @@
+#lang racket
+(require (for-syntax syntax/parse))
+
+(provide (all-defined-out))
+ (require racket/gui/base
+          "../model.rkt"
+          "../logical/logical-variables.rkt"
+          "../GUI-update.rkt")
+(require (except-in  "../logical/nodes.rkt" root)
+         "../logical/unification.rkt"
+         "../logical/tokens.rkt"
+         "../compile-interpret.rkt"
+         "../environment.rkt"
+         ;"../logical/compiler.rkt" 
+         "../logical/environment.rkt"
+         "../functional/datastructures.rkt"
+       ;  "../parse-values.rkt"
+         
+         
+         (only-in "forall.rkt"
+                  logic-connector
+                  logic-connector-deployedR-add
+                  logic-connector-deployedR-remove)
+
+         "queue-datastructure.rkt"
+       
+       )
+
+
+
+;FUNCTIONAL
+;
+
+
+(require 
+         (prefix-in  func: "../functional/nodes.rkt" )
+        
+         
+         (prefix-in func: "../environment.rkt")
+        
+         
+          racket/local)
+
+(provide (all-defined-out))
+
+
+
+(define (functional-propagate nodes node-values start-idx model-env)
+ 
+  (define (loop idx )
+    
+    (when (> (vector-length nodes) idx)
+      (let ((current-node (vector-ref nodes idx)))
+        ;(displayln node-values)
+        ;(displayln current-node)
+        (match current-node
+        
+          
+          [(func:start-jump-node roots jump-add)
+           ;check condition
+           (let* ((condition (for/or ([root-idx roots])
+                           (not (eq? (vector-ref node-values root-idx) 'empty)))))
+          ;   (display "condition:" )
+          ;   (displayln condition)
+             
+             (if condition 
+                 ;if true return nothing
+                 (loop (+ idx 1)  )
+               ;if false give back idx to where to jump
+                 (loop (+ jump-add idx) )))]
+          
+          
+          
+          
+          ;for a function execute the function on the give value and store result
+          [(func:single-function-node idx predecessor function event-var)
+           (let* ((predecessor-value (vector-ref node-values (car predecessor)))
+                  (local-env (hash-set model-env event-var predecessor-value)))
+            
+             (cond ((eq? 'empty predecessor-value)
+                    ;;in case a filter occurred
+                    (vector-set! node-values idx 'empty))
+                   (else 
+                    ;calculate new value and store
+                    (vector-set! node-values idx  (eval-reactor-body function local-env)))))
+             (loop  (+ idx 1)  )]
+          
+          ;for a function with random number of arguments
+         ; [(multi-function-node idx predecessor function)
+         ;  (let ((args (cdr (vector-ref node-values (car predecessor)))))
+         ;    ;calculate new value and store
+         ;    (vector-set! node-values idx (apply function args))
+         ;    (loop  (+ idx 1) branch ))]
+  
+          [(func:or-node  idx predecessors )
+           
+           ;;check branch to see which value it needs to take
+           (let* ((left-predecessor-idx (car predecessors))
+                  (right-predecessor-idx (cadr predecessors))
+                  (value (if (not (eq? (vector-ref node-values left-predecessor-idx) 'empty))
+                                 ;left
+                             (vector-ref node-values left-predecessor-idx)
+                             ;right
+                             (vector-ref node-values right-predecessor-idx))))
+            ; (displayln value)
+             (vector-set! node-values idx value)
+             (loop  (+ idx 1)  ))]
+            
+    
+          [(func:filter-node idx predecessor filter event-variable)
+         
+           (let* ((value (vector-ref node-values (car predecessor)))
+                  (local-env (hash-set model-env event-variable value)))
+           
+             ;(displayln value)
+             ;;if already been filtered out by previous filter or value is not #t by condition
+             (if (or (eq? 'empty value) (not (eval-reactor-body  filter local-env )))
+                 (vector-set! node-values idx 'empty)
+                 ;;value allowed to pass
+                 (vector-set! node-values idx value))
+             (loop  (+ idx 1)  ))]
+         
+          
+          ))))
+  
+  (loop start-idx ))
+
+
+
+(define (execute-turn deployedr input  turn-number)
+ 
+  (define ins (deployedR-ins deployedr))
+  (define nodes (deployedR-dag deployedr))
+  (define outs (deployedR-outs deployedr))
+  
+  (define values (make-vector (vector-length nodes) 'empty))
+  (if (not (= (vector-length ins) (vector-length input)))
+      (error (format "Wrong number of inputs expected ~a given ~a"
+                     (vector-length ins)
+                     (vector-length input)))
+      (for ([idx ins]
+            [value input])
+        
+        (vector-set! values idx value)))
+  (let ((local-env (hash-map (deployedR-model-vars deployedr) (lambda (k v) (cons k (model-var-val v))))))
+ 
+  (functional-propagate  nodes values (vector-length ins) (make-immutable-hash local-env))
+
+  (let ((output  (for/vector ([idx outs])
+                    (vector-ref values idx))))
+                    
+    
+    (for ([connector (functional-node-connectors deployedr)])
+    
+      (match connector
+        [(external-connector args)
+         (for ([arg args]
+               [out output])
+           (when (not (equal? 'empty out))
+         (match arg
+           [(model-var  val)
+          
+            (set-model-var-val! arg out)]
+           [_ (update-view arg out)])))]
+        [(internal-connector inputinfo app-info)
+         (put-in-collector-from-deployedR! connector output  turn-number)])))))
+       
+     
+  
+              
+;(define (turn: deployedr  input)
+; #:keywords turn: with:
+;  (execute-turn deployedr
+;                           input))
+
+
+(define (fire event value)
+  (let ((env global-env))
+    (for ([deployement (functional-node-connectors event)])
+      (match deployement
+        [(func->func-connector input-idxs deployedr)
+         (let ((input (make-vector (vector-length (deployedR-ins deployedr))
+                                   'empty)))
+           
+           (for ([input-idx input-idxs])
+             (vector-set! input input-idx value))
+          ( add-to-priority-queue! 50 deployedr input))]
+           ;;(execute-turn deployedr input  50))]
+        [(func->logic-connector _ _)
+         (put-in-collector-from-event! deployement value  50)])))
+  )
+
+
+
+
+;
+;PROPAGATION BETWEEN GRAPHS
+;
+
+(define (propagate-to-logic-graph collector full-collection   turn-number)
+ 
+  (let ((token (if (add-fact-collector? collector)
+                   (make-alpha-token-add (fact-collector-fact-name collector)
+                                         (vector->list full-collection)
+                                         (add-fact-collector-time-interval collector))
+                   (make-alpha-token-remove (fact-collector-fact-name collector)
+                                            (vector->list full-collection)))))
+    (add-to-priority-queue! turn-number 'root token )))
+
+(define (put-in-collector-from-event! func->logic-connector value  turn-number)
+  (let ((idxs-to-update (functional-connector-input-info func->logic-connector))
+        (collector (functional-connector-app-info func->logic-connector)))
+    (for ([idx idxs-to-update])
+      (let ((full-collection (put-in-collector!  collector value idx)))
+        (when full-collection
+          (propagate-to-logic-graph collector full-collection  turn-number ))))
+    ))
+          
+
+(define (put-in-collector-from-deployedR! collector values   turn-number)
+ 
+  (let ((collector (functional-connector-app-info collector)))
+  (let loop-put-in-colletor
+    ([idx 0])
+    
+    (when (< idx (vector-length values))
+      (let ((value (vector-ref values idx)))
+        (when (not (eq? 'empty value))
+            
+            (let ((full-collection (put-in-collector! collector
+                                                      value
+                                                      idx)))
+              (when full-collection
+              (propagate-to-logic-graph collector full-collection turn-number
+                                         ))))
+           
+          (loop-put-in-colletor (+ idx 1)))))
+  
+        ))
+            
+    
+
+(define (empty-place? collection idx)
+  (eq? 'empty (get-collection collection idx)))
+
+
+(define (full? collection)
+  
+  (for/and ([value collection])
+    (not (equal? 'empty value))))
+
+(define (put-in-collector! fact-collector value idx-collection )
+  (define collections (fact-collector-storage fact-collector))
+  (define size (vector-length collections))
+  (define (move!)
+    (let ((new-collection  (make-collection (size-collection
+                                             (vector-ref (fact-collector-storage fact-collector)
+                                                         (fact-collector-head fact-collector)))
+                                            'empty))
+         
+          (old-head (fact-collector-head fact-collector)))
+      
+          
+      (vector-set! collections
+                   (fact-collector-tail fact-collector) 
+                   new-collection)
+      
+      ;(put-collection! new-collection idx-collection value)
+     
+      (set-fact-collector-tail! fact-collector (modulo (+ (fact-collector-tail fact-collector) 1)
+                                                       size))
+                                                          
+      (set-fact-collector-head! fact-collector (modulo (+ old-head 1) size))
+      
+      (vector-ref collections old-head)))
+ 
+  (let loop-for-place
+    ((idx-fact-collector (fact-collector-head fact-collector)))
+    (cond ((= idx-fact-collector (fact-collector-tail fact-collector))
+           (move!)
+           (put-collection! (get-collection collections idx-fact-collector)
+                            idx-collection
+                            value)
+          
+           #f)          
+          ((empty-place? (vector-ref collections  idx-fact-collector) idx-collection)
+           (let ((collection (vector-ref collections idx-fact-collector)))
+            
+             (put-collection! collection idx-collection value)
+             (if (full? collection)
+                 (move!)
+                  #f)))
+          (else
+           (loop-for-place (modulo (+ idx-fact-collector 1) size))))))

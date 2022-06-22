@@ -1,9 +1,10 @@
 #lang racket
 (require "compile-interpret.rkt"
-         "nodes.rkt"
+         "nodes2.rkt"
          "environment.rkt"
          "../defmac.rkt"
-         "../root-env.rkt")
+         ;"../root-env.rkt"
+         )
 (provide (all-defined-out))
 
 ;(define functional-environment (new-env))
@@ -172,7 +173,7 @@
     (or-node -2 (list left-predecessor right-predecessor))))
          
   
-(defmac (reactor: name  (in: ins ...)  exprs ... (out: outs ...)  )
+(defmac (reactor: name  (in: ins:identifier ...)  exprs ... (out: outs ...)  )
   #:keywords reactor: in:  out:
   #:captures root-env map: filter: or: def:
   (let ((env (root-env-env root-env)))

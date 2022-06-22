@@ -1,0 +1,11 @@
+#lang racket
+
+(define-syntax t
+  (syntax-rules (t)
+    [(t e)
+     (+ e 1)]))
+
+(define-syntax main:
+  (syntax-rules (main:)
+    [(main: args ...)
+     #'(begin args ...)]))

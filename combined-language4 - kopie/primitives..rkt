@@ -1,0 +1,67 @@
+#lang racket
+(provide (all-defined-out))
+
+
+
+(define (number-operation procedure name)
+  (lambda ( first second)
+    (if (and (number? first) (number? second))
+         (procedure first second)
+        (error (format "~a ~a expected two numbers" first second)))))
+
+(define prim-add (number-operation + '+))
+(define prim-div (number-operation / '/))
+(define prim-sub (number-operation - '-))
+(define prim-mul (number-operation * '*))
+
+(define (prim-equal?  first second)
+ 
+  (equal? first second))
+      
+
+(define (prim-string-append  first second)
+  (if (and (string? first) (string? second))
+      (string-append  first second)
+      (error "String-append only accepts strings")))
+
+
+(define (number-comparison procedure name)
+  (lambda (env first second)
+    (let ((result 
+    (if (and (number? first) (number? second))
+        (procedure  first  second)            
+        (error (format "~a expected two numbers name" name)))))
+     
+      result)))
+
+(define prim-smaller-then? (number-comparison < 'Smallerthen))
+(define prim-greater-then? (number-comparison > 'Greatherthen))
+(define prim-smaller-equal-then? (number-comparison <= 'SmallerEqthen))
+(define prim-greater-equal-then? (number-comparison >= 'GreaterEqthen))
+
+
+(define (prim-not  first)
+  (not first))
+       
+
+(define (prim-and  first second)
+  (and first second))
+                
+(define (prim-or  first second)
+  (or first second))
+
+
+(define (prim-string->number first)
+  (if (string? first)
+      (string->number first)
+      (error (format "string->number expects string ~a" first))))
+
+
+(define (prim-number->string first)
+  (if (number? first)
+      (number->string first)
+      (error (format "string->number expects string ~a" first))))
+
+
+
+      

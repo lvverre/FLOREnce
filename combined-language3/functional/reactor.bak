@@ -1,0 +1,118 @@
+#lang racket
+(struct reactor (ins dag outs) #:transparent)
+
+
+(define (topological-sort leaf-nodes root-nodes) 
+  (define (permanent? el)
+    (>= (dependency-node-idx el) 0))
+  (define (temporary? el)
+    (= -1 (dependency-node-idx el)))
+  (define temporary -1)
+  (define topological-sorted-list '())
+  (define index 0)
+  (define (add-node! node)
+    (set! topological-sorted-list (cons node topological-sorted-list))
+    (set! index (+ index 1)))
+  
+
+  ;;for all start-nodes start visit function
+  (define (sort start-nodes)
+    (for-each
+     visit
+     start-nodes)
+    )
+  
+
+  (define (get-predecessors node)
+    (match node
+      ([root-node idx]
+       (list idx))
+      (_
+       (append-map get-predecessors
+                   (internal-node-predecessors node)))))
+          
+    
+  ;;add elements in topological order to list
+  (define (visit node)
+      (cond
+        ;;already visited
+        ((permanent? node) (get-predecessors node))
+        ;;there is an error
+        ((temporary?  node)
+         (error "There is a cycle"))
+        (else
+         (cond
+           ((root-node? node)
+            (set-dependency-node-idx! node index)
+            (add-node! node)
+            (list (- index 1)))
+            
+           #|((forall-or-node? node)            
+            (let* ((predecessors  (node-predecessors node))
+                   (add-node (car predecessors))
+                   (remove-node (cadr predecessors))
+                   (root (internal-node-predecessors remove-node))
+                   (start-jump-node (make-start-jump-node
+                                     (lambda (node)
+                                       (car (node-value node))
+                                       )))                         
+                   (end-add-node  (make-end-jump-node 'L 3))
+                   (end-remove-node (make-end-jump-node 'R 1)))
+              (set-start-jump-node-jump-to! start-jump-node 3)
+              (add-node! root)
+              (add-node! start-jump-node)
+              (add-node! add-node)
+              (add-node! end-add-node)
+              (add-node! remove-node)
+              (add-node! end-remove-node)
+              (set-dependency-node-idx! node index)
+              (add-node! node)))|#
+              
+                   
+           ;;or node encountered
+           ((or-node? node)
+            (set-dependency-node-idx! node temporary)
+            (let* ((predecessors (internal-node-predecessors node))
+                   (roots (append-map (lambda (predecessor)
+                                        (let ((jump-node (start-jump-node -1 -1))
+                                              (jump-index index))
+                                          (add-node! jump-node)
+                                          (let ((roots (visit predecessor)))
+                                            (set-start-jump-node-condition! jump-node roots)
+                                            (set-start-jump-node-jump! jump-node
+                                                                       (abs (- index
+                                                                               jump-index)))
+                                            roots)))
+                                      predecessors)))
+              
+              (set-dependency-node-idx! node index)
+              ;;add or node to top list
+              (add-node! node)
+              ;change mark to permanent
+              roots))
+
+                
+                 
+           (else
+            ;;not or node or end event node so
+            ;;keep goind down the tr
+            (set-dependency-node-idx! node temporary)
+            (let ((roots (visit (car (internal-node-predecessors node)))))
+              (set-dependency-node-idx! node index)
+              (add-node!  node)
+              roots
+              )
+            )))))
+  
+  
+  (for-each (lambda (node)
+              (set-dependency-node-idx! node index)
+              (add-node! node))
+            root-nodes)
+    ;get topological sort
+    (sort leaf-nodes)
+  ;;reverse 
+    (let ((reverse-sorted (reverse topological-sorted-list)))
+    ;;make vector and store in node
+      (list->vector reverse-sorted)))
+

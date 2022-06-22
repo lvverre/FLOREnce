@@ -1,0 +1,4 @@
+#lang racket
+(struct var-exp (var))
+(struct const (val))
+(struct app (op args))

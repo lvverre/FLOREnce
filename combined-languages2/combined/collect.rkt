@@ -8,7 +8,7 @@
          "../root-env.rkt")
         
 (provide (all-defined-out))
-
+(require (for-syntax syntax/parse))
 
 (define (init-fact-collector! collector collection-size fact-collector-size fact-name)
   (set-fact-collector-fact-name! collector fact-name)
@@ -118,10 +118,24 @@
     
 
 
-(defmac (add-collect1: logic-connector-names ... as: fact-name for: time-interval)
-  #:keywords add-collect1: as: for:
-  #:captures root-env
-  (add-collect* '(logic-connector-names ...) 'fact-name time-interval  1 root-env))
+(define-syntax (add-collect1 stx)
+  (syntax-parse stx
+    [((~literal add-collect1:) logic-connector-names:id ... (~literal as:) fact-name:id (~literal for:) time-interval:number)
+     (add-collect* '(logic-connector-names ...) 'fact-name time-interval  1 )]))
+
+(define-syntax (add-collect2 stx)
+  (syntax-parse stx
+    [((~literal add-collect1:) logic-connector-names:id ... (~literal as:) fact-name:id (~literal for:) time-interval:number)
+     (add-collect* '(logic-connector-names ...) 'fact-name time-interval  2 )]))
+
+(define-syntax (add-collect3 stx)
+  (syntax-parse stx
+    [((~literal add-collect1:) logic-connector-names:id ... (~literal as:) fact-name:id (~literal for:) time-interval:number)
+     (add-collect* '(logic-connector-names ...) 'fact-name time-interval  3 )]))
+(define-syntax (add-collect4 stx)
+  (syntax-parse stx
+    [((~literal add-collect1:) logic-connector-names:id ... (~literal as:) fact-name:id (~literal for:) time-interval:number)
+     (add-collect* '(logic-connector-names ...) 'fact-name time-interval  4 )]))
 
 (defmac (add-collect2: logic-connector-names ... as: fact-name for: time-interval)
   #:keywords add-collect2: as: for:

@@ -1,0 +1,39 @@
+#lang racket
+(require syntax/parse)
+
+(define-syntax main:
+  (syntax-rules (main: model: view: react:)
+    [(main: (model: model-defs)
+            (view: view-defs)
+            (react: react-defs))
+     model-defs]))
+(struct pair (head rest) #:mutable #:transparent)
+
+(define ((eval-model-expr env)expr )
+  (syntax-parse expr
+    [val:number 
+     (syntax-e #'val)]
+    [val:string
+     (syntax-e #'val)]
+    [((~literal sym) val:id)
+     (syntax-e #'val)]
+    [val:id
+     (lookup-local-var-error (syntax-e #'val) env)]
+    [((~literal list) args ...)
+    (map (eval-model-expr env) (syntax->list #'(args ...)))]))
+
+
+(define (eval-model defs)
+  (syntax-parse defs
+    [((~literal def:) var:id expr) 3]))
+
+(define (eval-view defs)
+  (syntax-parse defs
+    [((~literal def:) var:id ...+ body:expr) #'body]))
+     
+
+#|(define/syntax-parse (main: arg1 arg2 arg3)
+  #'(list 3;(syntax-e #'arg1)
+        ;  (syntax-e #'arg2)
+          ;(syntax-e #'arg3))
+          ))|#

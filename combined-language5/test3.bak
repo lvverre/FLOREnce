@@ -1,0 +1,58 @@
+#lang reader "reader.rkt"
+(main:
+ (model:
+  (def: customerID 0)
+  (def: total 0))
+ (view:
+  (def: label (message 0 0 10 30 "Drinks"))
+  (def: plus plus-enable (button 0 0 30 30 "+"))
+  (def: min min-enable (button 0 30 30 30 "-"))
+  )
+ (react:
+  (reactor: reactor-counter
+           (in: plus min #:model count)
+           (def: plus-count (map: plus (+ count 1)))
+           (def: min-count (map: min (- count 1)))
+           (def: new-count (or: plus-count min-count))
+           (def: string-new-count (map: new-count (number->string new-count)))
+           (out: new-count string-new-count))))
+
+#| (reactor: reactor-counter
+           (in: plus min #:model count)
+           (def: plus-count (map: plus (+ count 1)))
+           (def: min-count (map: min (- count 1)))
+           (def: new-count (or: plus-count min-count))
+           (def: string-new-count (map: new-count (number->string new-count)))
+           (out: new-count string-new-count))
+(deploy: reactor-counter with: plus min total as: counter)
+(update: total label with: counter)
+
+
+ (reactor: world-reactor
+           (in: plus min #:model customerID)
+           (def: happened (or: plus min))
+           (def: ID (map: happened customerID))
+           (out: ID))
+ (deploy: world-reactor with: plus min customerID as: world)
+ (reactor: new-customer-reactor
+           (in: id)
+           (def: new-ID (map: id (+ id 1)))
+           (def: total (map: id 0))
+           (def: new-message (map: id "0"))
+           (out: new-ID total new-message))
+
+ (reactor: nothing-reactor (in: id) (out: id))
+ 
+            
+           
+(add-collect1: world as: period for: 5)
+
+(forall: (period (?customerID))
+         (add-deploy: nothing-reactor as: nothing)
+         (remove-deploy: new-customer-reactor as: new-customer))
+
+(update: customerID total label with: new-customer)))|#
+
+  ))
+           
+  
