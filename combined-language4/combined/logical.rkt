@@ -347,14 +347,22 @@
 ;propagates an event with name NAME and args -values trough the DAG
 
 
+
+(begin-for-syntax 
+  (define-syntax-class fact
+    (pattern ((~literal fact:) name:id args ...)
+             #:attr token #'(token 'name  (map (lambda (arg)
+                                                 (eval-fact-body (compile-expression-without-syntax arg ) (make-hash)))
+                                               '(args ...))))))
+
+
 (define-syntax (add: stx)
   (syntax-parse stx
-    [((~literal add:) FACT (~literal for:) alive-interval:number)
-  #'(cond ((token? FACT)
-           (let ((alpha-t (alpha-token-add (token-id FACT)
-                                           (token-args FACT)
-                                           alive-interval)))
-             (add-to-priority-queue! 50 'root alpha-t )))
+    [((~literal add:) FACT:fact (~literal for:) alive-interval:number)
+     #'(let ((alpha-t (alpha-token-add (token-id FACT.token)
+                                       (token-args FACT.token)
+                                       alive-interval)))
+         (add-to-priority-queue! 50 'root alpha-t ))]))
               
       #|(start-propagation
        (make-alpha-token-add (token-id FACT)(token-args FACT) alive-interval)
@@ -363,14 +371,13 @@
        
       )|#
            
-          (else (error (format "~a is not a fact" FACT))))]))
+       
 (define-syntax (remove: stx)
   (syntax-parse stx
-    [((~literal remove:) FACT)
-     #'(cond ((token? FACT)
-              (let ((alpha-t (alpha-token-remove (token-id FACT)
-                                                 (token-args FACT))))
-                (add-to-priority-queue! 50 'root alpha-t )))
+    [((~literal remove:) FACT:fact)
+     #'(let ((alpha-t (alpha-token-remove (token-id fact.token)
+                                          (token-args fact.token))))
+         (add-to-priority-queue! 50 'root alpha-t ))]))
               
            
            #|(start-propagation
@@ -378,15 +385,17 @@
             50
        
        )|#
-             (else (error (format "~a is not a fact" FACT))))]))
+           
 
-(define-syntax (fact: stx)
+
+
+#|(define-syntax (fact: stx)
   (syntax-parse stx
     [((~literal fact:) name:id args ...)
       #'(token 'name (map (lambda (arg)
                             
                            (eval-fact-body (compile-expression-without-syntax arg ) (make-hash)))
-                          '(args ...)))]))
+                          '(args ...)))]))|#
      
 
 (define (propagate-from-root token   turn-number)

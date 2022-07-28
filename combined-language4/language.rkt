@@ -3,18 +3,21 @@
 (require "view.rkt")
 (require "functional/deploy.rkt")
 (require "functional/reactor.rkt")
+(require "GUI-update.rkt")
 (require "combined/collect.rkt")
 (require racket/gui/base
           "GUI-primitives.rkt"
           "functional/datastructures.rkt")
 (require "environment.rkt")
 (require "update.rkt")
+(require "variables.rkt")
 (require "combined/logical.rkt")
 (require "combined/propagation.rkt")
 (require "compile-interpret.rkt")
 (require "combined/forall.rkt")
 (require "combined/propagation2.rkt")
 (require "logical/logical-timer.rkt")
+(require "GUI-primitives.rkt")
 (require (for-syntax syntax/parse))
 
 
@@ -25,7 +28,7 @@
          reactor:
          ror:
          update:
-         fact:
+         
          add:
          remove:
          rule:
@@ -37,35 +40,73 @@
 
 
 (define-syntax (new-module-begin stx)
-
+  (display "hier")
   (syntax-parse stx
    [ (_ ((~literal main:)
          ((~literal model:) model-exprs:def-model ...)
-         ((~literal view:) view-exprs:def-view ...)
+         view-exprs:def-view;((~literal view:) view-exprs:def-view ...)
          ((~literal react:) react-exprs ...)))
    #'(#%module-begin
        (define timer (make-timer))
       (send timer start 1000)
+      (create-new-subenv! global-env 'model)
       (map (lambda (var val)
              
-             (add-to-local-env! var 
-                                (model-var (eval-reactor-body val global-env))
+             (add-to-local-env! var
+                                'model
+                                (model-var (eval-reactor-body val (get-sub-env global-env 'model)))
                                 global-env))
            '(model-exprs.variable ...)
            (list model-exprs.value ...))
-      (let* ((frame (new frame% [width 800] [height 800] [label "view"]))
-             (parent (new class-panel [parent frame][style (list 'vscroll 'hscroll)])))
-        (map (lambda (vars operator vals)
-               (interpret-view-widget vars operator vals parent))
-             '(view-exprs.variables ...)
-             '(view-exprs.widget-operator ...)
-             (list view-exprs.arguments ...))
+      (define frames 
       
-        
+        (map
+         (lambda (id list-list-variables list-operators list-list-arguments)
+             
+                         (let* ((frame (new frame% [width 800] [height 800] [label (symbol->string id)]))
+                                (parent (new class-panel [parent frame][style (list 'vscroll 'hscroll)])))
+                           (create-new-subenv! global-env id)
+                         
+                           (map (lambda (variables operator arguments)
+                                  
+                                  (interpret-view-widget variables
+                                                         operator
+                                                         arguments
+                                               parent
+                                               id))
+                                list-list-variables
+                                list-operators
+                                list-list-arguments
+                                )
+                           frame
+                        
+                          ))
+                             
+                             
+                       
+                       
+             'view-exprs.ids
+             'view-exprs.variables
+             'view-exprs.operators
+             view-exprs.arguments))
+           
+                    
+                  
+      
+         (create-new-subenv! global-env 'react)
           react-exprs ...
-          (send frame show #t)
+          (for-each (lambda (frame) (send frame show #t)) frames)
       
-      (propagate!)))]))
+      (vector-set! current-process-thread 0 (thread (lambda ()
+                  
+                                           (let loop ()
+                                             (propagate!)
+                                             (match (thread-receive)
+                                               [(list event-node arg)
+                                                (displayln "propagation")
+                                                (start-propagation-process  event-node arg)
+                                                (loop)
+                                                ]))))))]))
      
       ;#'(view-exprs ...)
       ;#'(react-exprs ...))

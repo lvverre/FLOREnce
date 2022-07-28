@@ -39,7 +39,7 @@
         (let ([compiled-args (map compile-constraint args )])
        (and-exp compiled-args))]
       [`(,op ,args ...)
-       (let ([val-op (lookup-local-var-error op  constraint-env)]
+       (let ([val-op (lookup-node-var-error op  constraint-env)]
              [val-args (map compile-constraint-atoms args )])
          (app-exp val-op val-args))]
       ))
@@ -69,7 +69,7 @@
         (with-syntax ([compiled-args (map compile-constraint (syntax->list #'(args ...)))])
        #'(and-exp compiled-args))]
       [(op:id args ...)
-       (with-syntax ([val-op (lookup-local-var-error (syntax-e #'op) constraint-env)]
+       (with-syntax ([val-op (lookup-node-var-error (syntax-e #'op) constraint-env)]
                      [val-args (map compile-constraint-atoms (syntax->list #'(args ...)))])
          #'(app-exp val-op val-args))]
       ))

@@ -95,14 +95,13 @@
         
   
 (define (collect* logic-connector-names fact-name size collector )
-  (displayln (format "WORL: ~a" logic-connector-names))
+ 
       (let* (
-             (logic-connectors (map (lambda (var ) (lookup-local-var-error var global-env))
+             (logic-connectors (map (lambda (var ) (lookup-all-local-var-error var global-env))
                                     logic-connector-names )))
         (check-argument-type logic-connectors fact-name)
         (let ((collection-size (calculate-collection-size logic-connectors)))
-          (displayln "collections size")
-          (displayln collection-size)
+         
           (init-fact-collector! collector collection-size size fact-name)
           (if (deployedR? (car logic-connectors))
               (register-deployedR-to-collector! (car logic-connectors) collector)

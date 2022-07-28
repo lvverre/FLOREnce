@@ -5,6 +5,7 @@
          "../defmac.rkt"
          "../compile-interpret.rkt"
          ;"../root-env.rkt"
+         "../eval-rules-bodies.rkt"
          )
 
 (require (for-syntax syntax/parse))
@@ -111,7 +112,7 @@
             ;;not or node or end event node so
             ;;keep goind down the tr
             (set-dependency-node-idx! node temporary)
-            (display (internal-node-predecessors node))
+            
             (let ((roots (visit (car (internal-node-predecessors node)))))
               (set-dependency-node-idx! node index)
               (add-node!  node)
@@ -142,12 +143,13 @@
 
 
 (define (make-map-node event-name expr env )
+  (display expr)
   (if (symbol? event-name)
       (let ((predecessor (lookup-local-var-error event-name env)))
+        
         (cond (predecessor
-               (display "MAP")
-               (display predecessor)
-               (make-single-function-node   predecessor (compile expr ) event-name))
+              
+               (make-single-function-node   predecessor expr  event-name))
               (else
                (error (format "~a is not defined" event-name)))))
       (error (format "map: accepts event name as first argument not ~a" event-name))))
@@ -167,52 +169,52 @@
       (let ((predecessor (lookup-local-var-error event-name env)))
        
         (cond (predecessor
-               (filter-node -2 (list predecessor) (compile expr ) event-name))
+               (filter-node -2 (list predecessor)  expr  event-name))
               (else
                (error (format "~a is not defined" event-name)))))
       (error (format "filter: accepts event names as first argument not ~a" event-name))))
 
 
 (define (make-or-node event-name-left event-name-right env)
-  ;(display env)
+ 
   (let ((left-predecessor (lookup-local-var-error event-name-left env))
         (right-predecessor (lookup-local-var-error event-name-right env)))
     (or-node -2 (list left-predecessor right-predecessor))))
 
  
 
+(struct map-exp (var expr))
+(struct filter-exp (var expr))
+(struct or-exp (var1 var2))
+
+
+(begin-for-syntax 
+  (define-syntax-class node
+    (pattern ((~literal map:) val:id expr:body)
+      #:attr value #'(map-exp 'val expr.value));(make-map-node (syntax-e #'val) #'body env )]
+    (pattern ((~literal filter:) val:id expr:body)
+      #:attr value #'(filter-exp 'val expr.value ))
+    (pattern ((~literal or:) name-left:id name-right:id)
+      #:attr value #'(or-exp 'name-left 'name-right))))
 
 
 
-(define (interpret-def-body stx env )
-  (syntax-parse stx
-    [((~literal map:) val:id expr:body)
-      (make-map-node (syntax-e #'val) #'body env )]
-    [((~literal filter:) val:id expr:body)
-      (make-filter-node (syntax-e #'val) #'body env )]
-    [((~literal or:) name-left:id name-right:id)
-      (make-or-node (syntax-e #'name-left) (syntax-e #'name-right) env)]))
 
-(define (interpret-reactor-body stx env input-vars)
-  (syntax-parse stx
-    [(((~literal def:) event-name:id node) ...)
-     (display (append (map syntax-e (syntax->list #'(event-name ...)))
-                                                           input-vars))
-     (let ((duplicated-variable (check-duplicates (append (map syntax-e (syntax->list #'(event-name ...)))
-                                                           input-vars))))
-
-       (when duplicated-variable
-         (error (format "~a is already defined" duplicated-variable))))
-                        
-         (for-each (lambda (event-name node)
-                     (define-node (syntax-e event-name) (interpret-def-body  node env) env))
-                   (syntax->list #'(event-name ...))
-                   (syntax->list #'(node ...)))]))
+(define (eval-node new-var node-expr env)
+  (let ((node 
+         (match node-expr
+           [(map-exp old-var body)
+            (make-map-node old-var body env)]
+           [(or-exp old-var1 old-var2)
+            (make-or-node old-var1 old-var2 env)]
+           [(filter-exp old-var body)
+            (make-filter-node old-var body env)])))
+    (define-node new-var node env)))
+      
 
 
-(define (model-var-name? name)
-  (let ((name-string (symbol->string name)))
-    (equal? #\M (string-ref name-string 0))))
+
+
 
 
 #|(define (add-id-number variable-symbol)
@@ -223,16 +225,18 @@
 
 (define-syntax (reactor: stx)
   (syntax-parse stx
-    [((~literal reactor:) name:id
+     [((~literal reactor:) name:id
                           ((~literal in:) ins:id ...+ (~optional (~seq #:model consts:id ...+)))
-                          (def: var body-def ) ...
+                          (def: new-var:id expr:node) ...
                           ((~literal out:) outs ...)  )
      (with-syntax ([model-vars (if (attribute consts) #''(consts ...) #''())])
        #'(let* ((eval-name 'name)
                 (eval-ins '(ins ...))
                 (eval-outs  '(outs ...))
+                
                 )
-           (when (check-duplicates (append model-vars eval-ins))
+          
+           (when (check-duplicates (append model-vars '(new-var ...) eval-ins))
              (error "Reactor cannot have duplicate names in ins"))
          
            (if (local-env-contains?  eval-name global-env)
@@ -242,15 +246,21 @@
                      ; (model-env (make-hash (map (lambda (name name-with-id) (cons name (add-id-number name))) model-vars model-vars-with-id)))
                       (in-nodes (map (lambda (name)
                                        (make-root-node! name node-env))
-                                     eval-ins)))
-                 (interpret-reactor-body #'(exprs ... ) node-env (append model-vars eval-ins))
+                                     eval-ins))
+                      (used-names (append model-vars eval-ins)))
+                 (for-each (lambda (var node-expr)
+                             (eval-node var node-expr node-env))
+                           '(new-var ...)
+                           (list expr.value ...))
+                        
+               
                  (let* ((out-nodes (map (lambda (out-name) (lookup-local-var-error out-name node-env)) eval-outs ))
                         (sorted (topological-sort out-nodes in-nodes)))
                    (for ([node sorted])
                      (when (internal-node? node)
                        (set-internal-node-predecessors! node
                                                         (map dependency-node-idx (internal-node-predecessors node)))))
-               
+                   
                    (add-to-local-env!
                     eval-name
                     (reactor
@@ -314,8 +324,8 @@
     [((~literal ror:) name:id (~literal with:) reactor-name1:id reactor-name2:id)
     #'(if (local-env-contains? 'name global-env)
         (error (format "Reactor ~a is already defined" 'name)) 
-        (let ((reactor1  (lookup-local-var-error 'reactor-name1 global-env))
-              (reactor2 (lookup-local-var-error 'reactor-name2 global-env)))
+        (let ((reactor1  (lookup-local-var-error 'reactor-name1 'react global-env))
+              (reactor2 (lookup-local-var-error 'reactor-name2 'react global-env)))
         (let* ((ins-1 (reactor-ins reactor1))
                (dag-1 (reactor-dag reactor1))
                (outs-1 (reactor-outs reactor1))

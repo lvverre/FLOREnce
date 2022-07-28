@@ -2,7 +2,9 @@
 (require syntax/parse)
 (provide 
          interpret-view-widget
-         (for-syntax def-view))
+         (for-syntax def-view)
+         (for-syntax def-window)
+         (for-syntax def-widget))
 
 (require (for-syntax syntax/parse))
 (require "environment.rkt"
@@ -42,46 +44,43 @@
 
 
 
-#|(define (parse-view-def stx env)
-  (syntax-parse stx
-    [val:number
-     (syntax-e #'val)]
-    [val:string
-     (display "string")
-     (syntax-e #'val)]
-    [((~literal sym) val:id)
-     (display "symbol")
-     (syntax-e #'val)]
-    [val:id
-
-
-
-     (display "lookup")
-     (let ((val (lookup-var-error (syntax-e #'val) env)))
-       (if (model-var? val)
-           (model-var-val val)
-           val))]
-    [((~literal list) args ...)
-     (display "list")
-     (map (lambda (arg) (interpret-argument arg env)) (syntax->list #'(args ...)))]
-    [(op args ...)
-     (display "apply")
-     (let ((eval-op (lookup-var-error (syntax-e #'op) env))
-             (eval-args (map (lambda (name) (interpret-argument name env)) (syntax->list #'(args ...)))))
-         (display eval-args)
-         (apply eval-op eval-args))]))|#
 
 
 (begin-for-syntax 
-  (define-syntax-class def-view
+  (define-syntax-class def-widget
     (pattern ((~literal def:) var:id ... (op:id  args:body ...))
              #:attr variables #'(var ...)
-              #:attr widget-operator #'op
-              #:attr arguments #'(list args.value ...))))
+             #:attr operator #'op
+             #:attr arguments #'(list args.value ...)))
+
+  
+  
+  (define-syntax-class def-window
+    (pattern ((~literal def-window:) window-id:id defined-widgets:def-widget ...)
+             #:attr id #'window-id
+             #:attr variables #'(defined-widgets.variables ...)
+             #:attr operators #'(defined-widgets.operator ...)
+             #:attr arguments #'(list defined-widgets.arguments ...)))
+
+  (define-syntax-class def-view
+    (pattern ((~literal view:) windows:def-window ... widgets:def-widget ...)
+             #:attr ids #'(main windows.id ...)
+             #:attr variables #'((widgets.variables ...) windows.variables ...)
+             #:attr operators #'((widgets.operator ...) windows.operators ...)
+             #:attr arguments #'(list (list widgets.arguments ...) windows.arguments ...))))
+                                 
 
 
-(define (interpret-view-widget vars operator args parent)
-  (let ((results (apply (lookup-local-var-error operator GUI-primitives)
+
+              
+
+
+
+
+
+(define (interpret-view-widget vars operator args parent env-name)
+  (displayln args)
+  (let ((results (apply (hash-ref GUI-primitives operator  (lambda ()(error (format "~a is not defined for this expression" operator))))
                         (cons parent (map (lambda (arg)
                                            
                                             (eval-reactor-body arg global-env))
@@ -91,7 +90,7 @@
       (error "Number of given formal parameters is not equal to number of actual parameters given"))
     (for ([var vars]
           [res results])
-      (add-to-local-env! var res global-env))))
+      (add-to-local-env! var env-name res global-env))))
 #|(define (interpret-view-widget stx parent)
   (syntax-parse stx
     [(op:id args ...)

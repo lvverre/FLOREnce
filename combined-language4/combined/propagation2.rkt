@@ -18,7 +18,7 @@
     (display "loop")
     
     (when (not (empty? priority-queue))
-      (displayln (car priority-queue))
+      (displayln "propagation loop")
       (match (pn-pair-val (serve-priority-queue!))
         [(vnt-pair value node turn)
          #:when (deployedR? node)

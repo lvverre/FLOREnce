@@ -85,6 +85,7 @@
    )
  
  (view:
+  (def-window 
   ;DRINKS
   (def: drinks-label (message 0 0 100 20 "DRINKS" ))
   (def: fanta-label (message 0 20 100 20 "Fanta: € 3.1" ))
@@ -98,6 +99,7 @@
 
   (def: orange-juice-label (message 405 20 100 20 "Orange Juice: € 3.1"))
   (def: orange-juice-plus-e orange-juice-plus-enable (button 405 40 60 30 "+"))
+    )
   
   ;BURGER
   (def: burger-label (message 0 80  100 20 "BURGERS"))
@@ -181,7 +183,7 @@
               (in: list-box)
               (out: list-box))
     
-    (reactor: remove-reactor
+     (reactor: remove-reactor
               (in: button #:model selected-index order)
               (def: index (map: button selected-index))
               (def: index-e (filter: index index))
@@ -191,7 +193,7 @@
 
     (deploy: selected-for-remove-reactor with: order-list-box-e as: selected-for-remove)
     (update: current-selected-item with: selected-for-remove)
-    (deploy: remove-reactor with: remove-event current-selected-item order as: remove)
+    (deploy:  remove-reactor with: remove-event current-selected-item order as: remove)
     (remove-collect1: remove as: fries)
     (remove-collect1: remove as: burger)
     (remove-collect1: remove as: saus)
@@ -423,6 +425,7 @@
             (out: label new-total new-order ))
 
 
+  
  
   (reactor: remove-logic-reactor
             (in: itemID customerID type price #:model order total)
@@ -501,7 +504,7 @@
   
   (update: order current-selected-item remove-list-box total sum-total-label with: remove-menu)
 
-   (update: add-list-box total order sum-total-label with: add-menu-promo)
+  (update: add-list-box total order sum-total-label with: add-menu-promo)
   
   (update: order current-selected-item remove-list-box total sum-total-label with: remove-menu-promo)
 
@@ -598,6 +601,7 @@
             (in: event #:model customerID)
             (def: ID (map: event customerID))
             (out: ID))
+  (add: view-name id )
   (deploy: session-reactor with: fanta-plus-e customerID as: session-1)
   (deploy: session-reactor with: cola-plus-e customerID as: session-2)
   (deploy: session-reactor with: ice-tea-plus-e customerID as: session-3)

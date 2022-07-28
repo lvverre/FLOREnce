@@ -1,11 +1,17 @@
 #lang racket
 (require syntax/parse)
-(provide interpret-view)
+(provide 
+         interpret-view-widget
+         (for-syntax def-view))
+
+(require (for-syntax syntax/parse))
 (require "environment.rkt"
          racket/gui/base
          "GUI-primitives.rkt"
          "functional/datastructures.rkt"
          "primitives..rkt"
+         "eval-rules-bodies.rkt"
+         "compile-interpret.rkt"
          )
 
 (define view-argument-primitive (make-hash  (list (cons '+ prim-add)
@@ -31,11 +37,12 @@
                                        (cons  'check-box make-check-box)
                                        (cons  'message make-message)
                                        (cons  'slider make-slider)
+                                       (cons 'list-box make-list-box)
                                        )))
 
 
 
-(define (interpret-argument stx env)
+#|(define (parse-view-def stx env)
   (syntax-parse stx
     [val:number
      (syntax-e #'val)]
@@ -46,6 +53,9 @@
      (display "symbol")
      (syntax-e #'val)]
     [val:id
+
+
+
      (display "lookup")
      (let ((val (lookup-var-error (syntax-e #'val) env)))
        (if (model-var? val)
@@ -59,22 +69,51 @@
      (let ((eval-op (lookup-var-error (syntax-e #'op) env))
              (eval-args (map (lambda (name) (interpret-argument name env)) (syntax->list #'(args ...)))))
          (display eval-args)
-         (apply eval-op eval-args))]))
+         (apply eval-op eval-args))]))|#
 
-(define (interpret-view-widget stx parent)
+
+(begin-for-syntax 
+  (define-syntax-class def-view
+    (pattern ((~literal def:) var:id ... (op:id  args:body ...))
+             #:attr variables #'(var ...)
+              #:attr widget-operator #'op
+              #:attr arguments #'(list args.value ...)))
+
+  
+  
+  (define-syntax-class def-window
+    (pattern ((~literal def-window:) window-id:id widgets:def-view ...)
+             #:attr window #'(cons window (list widgets ...)))))                                     
+
+
+
+
+
+(define (interpret-view-widget vars operator args parent)
+  (let ((results (apply (lookup-local-var-error operator GUI-primitives)
+                        (cons parent (map (lambda (arg)
+                                           
+                                            (eval-reactor-body arg global-env))
+                                          args)))))
+    (when (not (= (length vars)
+                  (length results)))
+      (error "Number of given formal parameters is not equal to number of actual parameters given"))
+    (for ([var vars]
+          [res results])
+      (add-to-local-env! var res global-env))))
+#|(define (interpret-view-widget stx parent)
   (syntax-parse stx
     [(op:id args ...)
      (apply (lookup-local-var-error (syntax-e #'op) GUI-primitives)
             (cons parent (map (lambda (arg)
-                   (interpret-argument arg (make-env view-argument-primitive global-env)))
-                 (syntax->list #'(args ...)))))]))
+                                (eval-reactor-body(compile-expression arg ) global-env))
+                              (syntax->list #'(args ...)))))]))
 
 (define (interpret-view stx)
   (syntax-parse stx
     [(((~literal def:) var:id ... body:expr) ...)
-     (let* (
-            (frame (new frame% [width 300] [height 300] [label "view"]))
-            (parent (new class-panel [parent frame])))
+     (let* ((frame (new frame% [width 800] [height 800] [label "view"]))
+            (parent (new class-panel [parent frame][style (list 'vscroll 'hscroll)])))
        (for-each (lambda (vars body)
                    (let ((evaluated-vals (interpret-view-widget body parent))
                          (evaluated-vars (map syntax-e (syntax->list vars))))
@@ -87,4 +126,4 @@
                  (syntax->list #'((var ...) ...))
                  (syntax->list #'(body ...)))
        (send frame show #t))
-     ]))
+     ]))|#

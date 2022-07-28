@@ -135,7 +135,7 @@
 
 (define (make-root-node! name env)
   (let ((new-node (root-node -2)))
-    (add-to-local-env! name new-node env)
+    (add-to-node-env! name new-node env)
     new-node))
 
 
@@ -145,7 +145,7 @@
 (define (make-map-node event-name expr env )
   (display expr)
   (if (symbol? event-name)
-      (let ((predecessor (lookup-local-var-error event-name env)))
+      (let ((predecessor (lookup-node-var-error event-name env)))
         
         (cond (predecessor
               
@@ -157,7 +157,7 @@
 (define (define-node name node env)
   (cond ((and (symbol? name)
               (node? node))
-         (add-to-local-env! name node env))
+         (add-to-node-env! name node env))
         ((symbol? name)
          (error (format "def: accepts map: or filter: or or: as second argument not ~a" node)))
         (else
@@ -166,7 +166,7 @@
 
 (define (make-filter-node event-name expr env )
   (if (symbol? event-name)
-      (let ((predecessor (lookup-local-var-error event-name env)))
+      (let ((predecessor (lookup-node-var-error event-name env)))
        
         (cond (predecessor
                (filter-node -2 (list predecessor)  expr  event-name))
@@ -177,8 +177,8 @@
 
 (define (make-or-node event-name-left event-name-right env)
  
-  (let ((left-predecessor (lookup-local-var-error event-name-left env))
-        (right-predecessor (lookup-local-var-error event-name-right env)))
+  (let ((left-predecessor (lookup-node-var-error event-name-left env))
+        (right-predecessor (lookup-node-var-error event-name-right env)))
     (or-node -2 (list left-predecessor right-predecessor))))
 
  
@@ -224,6 +224,7 @@
     variable-with-id))|#
 
 (define-syntax (reactor: stx)
+  (display "reactor")
   (syntax-parse stx
      [((~literal reactor:) name:id
                           ((~literal in:) ins:id ...+ (~optional (~seq #:model consts:id ...+)))
@@ -239,9 +240,9 @@
            (when (check-duplicates (append model-vars '(new-var ...) eval-ins))
              (error "Reactor cannot have duplicate names in ins"))
          
-           (if (local-env-contains?  eval-name global-env)
+           (if (local-env-contains?  eval-name 'react global-env)
                (error (format "Reactor with ~a already defined" 'name))
-               (let* ((node-env (new-local-env))
+               (let* ((node-env (new-node-env))
                      ; (model-vars-with-id (map (lambda (name) (cons name(add-id-number name))) model-vars))
                      ; (model-env (make-hash (map (lambda (name name-with-id) (cons name (add-id-number name))) model-vars model-vars-with-id)))
                       (in-nodes (map (lambda (name)
@@ -254,7 +255,7 @@
                            (list expr.value ...))
                         
                
-                 (let* ((out-nodes (map (lambda (out-name) (lookup-local-var-error out-name node-env)) eval-outs ))
+                 (let* ((out-nodes (map (lambda (out-name) (lookup-node-var-error out-name node-env)) eval-outs ))
                         (sorted (topological-sort out-nodes in-nodes)))
                    (for ([node sorted])
                      (when (internal-node? node)
@@ -263,6 +264,7 @@
                    
                    (add-to-local-env!
                     eval-name
+                    'react 
                     (reactor
                      (list->vector (map dependency-node-idx in-nodes))
                      sorted
@@ -322,10 +324,10 @@
 (define-syntax (ror: stx)
   (syntax-parse stx
     [((~literal ror:) name:id (~literal with:) reactor-name1:id reactor-name2:id)
-    #'(if (local-env-contains? 'name global-env)
+    #'(if (local-env-contains? 'name 'react global-env)
         (error (format "Reactor ~a is already defined" 'name)) 
-        (let ((reactor1  (lookup-local-var-error 'reactor-name1 global-env))
-              (reactor2 (lookup-local-var-error 'reactor-name2 global-env)))
+        (let ((reactor1  (lookup-local-var-error 'reactor-name1  'react global-env))
+              (reactor2 (lookup-local-var-error 'reactor-name2 'react global-env)))
         (let* ((ins-1 (reactor-ins reactor1))
                (dag-1 (reactor-dag reactor1))
                (outs-1 (reactor-outs reactor1))
@@ -347,6 +349,7 @@
                 (else
                  (update-idx-dag (vector-length dag-1) outs-1 new-dag)
                  (add-to-local-env! 'name
+                                    'react
                               (reactor
                                (vector-copy ins-1)
                                new-dag

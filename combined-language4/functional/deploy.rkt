@@ -26,39 +26,59 @@
              (deployment-comparisson-loop (cdr deployments))))))
              
 
+
+(begin-for-syntax 
+  (define-syntax-class input
+    (pattern ((~literal fact:) window:id input:id)
+             #:attr place #''window
+              #:attr var #''input)
+    
+    (pattern input:id
+             #:attr place  #''model
+             #:attr var #''input)))
+
+(define-syntax (d stx)
+  (syntax-parse stx
+    [(_ v:input) #'v.place]))
+  
+
 (define-syntax (deploy: stx)
+
+  (display "deloy")
   (syntax-parse stx 
-    [((~literal deploy:) reactor-name:id (~literal with:) event-names:id ...+  (~literal as:) new-name:id)
+    [((~literal deploy:) reactor-name:id (~literal with:) event-place:input  ...+  (~literal as:) new-name:id)
   
   #'
 
-    (let ((reactor (lookup-local-var-error 'reactor-name global-env)))
+    (let ((reactor (lookup-local-var-error 'reactor-name 'react global-env)))
       (when (not (reactor? reactor))
         (error (format "Deploy expects name of reactor")))
-      (let*-values ([(events rest) (let loop ([events '()]
-                                            [names '(event-names ...)])
+      (let*-values ([(events rest-names rest-places) (let loop ([events '()]
+                                            [names (list event-place.var ...)]
+                                            [places (list event-place.place ...)])
                                     (if (null? names)
-                                        (values events names)
-                                        (let ((event (lookup-local-var-error (car names) global-env)))
+                                        (values events names places)
+                                        (let ((event (lookup-local-var-error (car names) (car places) global-env)))
                                           (cond ((event-node? event)
-                                                 (loop (append events (list event )) (cdr names)))
+                                                 (loop (append events (list event )) (cdr names) (cdr places)))
                                                 (else
-                                                 (values events names))))))]
+                                                 (values events names places))))))]
                                                  
                                           
                   [ (model-vars) (let loop ([model-vars '()]
-                                            [names rest])
+                                            [names rest-names]
+                                            [places rest-places])
                                         (cond ((null? names)
                                                (values model-vars))
                                               (else 
-                                               (let ((model-var (lookup-local-var-error (car names) global-env)))
+                                               (let ((model-var (lookup-local-var-error (car names) (car places)  global-env)))
                                                  (cond  ((model-var? model-var)
                                                          (loop (append model-vars (list model-var))
-                                                               (cdr names)))
+                                                               (cdr names) (cdr places)))
                                                         (else
                                                        
                                                          (error (format "Deploy:with:as: needs model-var as argument gotten ~a" model-var))))))))])
-        (displayln 'reactor-name)
+       
                    
       (when (not (and (= (vector-length (reactor-ins reactor))
                          (length events))
@@ -80,7 +100,7 @@
                                                             ))
                                   )))
 
-      (add-to-local-env! 'new-name deployed-reactor global-env)
+      (add-to-local-env! 'new-name 'react deployed-reactor global-env)
         (for/fold ([idx 0])
                   ([event events])
           (register-to-event! event deployed-reactor idx)

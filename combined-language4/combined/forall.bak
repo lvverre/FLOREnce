@@ -6,14 +6,15 @@
          (except-in "../logical/nodes.rkt" root)
          "../logical/logical-variables.rkt" 
          "../functional/reactor.rkt"
+         "../eval-rules-bodies.rkt"
         
          )
 (require (for-syntax syntax/parse))
 (provide (all-defined-out))
-(struct d (deployedR-add deployedR-remove) #:transparent) 
+(struct logic-connector (deployedR-add deployedR-remove) #:transparent) 
 
 (define (lookup-model-var name)
-  (let ((value (lookup-local-var-error name global-env)))
+  (let ((value (lookup-local-var-error name 'model global-env)))
     (when (not (model-var? value))
       (error (format "Forall needs to have model vars")))
     value))
@@ -23,13 +24,14 @@
     [((~literal forall:) (event-name:id (args ...) constraints ...)
                          ((~literal add-deploy:) reactor-name-add:id model-vars-add:id ... (~literal as:) deployedR-add-name:id)
                          ((~literal remove-deploy:) reactor-name-remove:id model-vars-remove:id ... (~literal as:) deployedR-remove-name:id))
+     
      #'(begin 
     
                                
     (let*
         (
          
-         (alpha-node (make-alpha-node 'event-name '(args ...) (compile-multiple-in-one '(constraints ...) )))
+         (alpha-node (make-alpha-node 'event-name '(args ...) (compile-constraint-rules-without-syntax '(constraints ...))));(compile-multiple-in-one '(constraints ...) )))
          ;(map (lambda (condition) (compile condition #t)) '(constraints ...))))
         (reactor-add (lookup-local-var-error 'reactor-name-add global-env))
         (reactor-remove (lookup-local-var-error 'reactor-name-remove global-env))

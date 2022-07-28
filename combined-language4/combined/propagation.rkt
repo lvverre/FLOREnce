@@ -3,6 +3,7 @@
 
 (provide (all-defined-out))
  (require racket/gui/base
+          "../GUI-input-output.rkt"
           "../model.rkt"
           "../logical/logical-variables.rkt"
           "../GUI-update.rkt")
@@ -128,7 +129,7 @@
 
 
 (define (execute-turn deployedr input  turn-number)
- 
+  (displayln "execute turn")
   (define ins (deployedR-ins deployedr))
   (define nodes (deployedR-dag deployedr))
   (define outs (deployedR-outs deployedr))
@@ -157,11 +158,12 @@
          (for ([arg args]
                [out output])
            (when (not (equal? 'empty out))
+             (displayln "upDATE STAR")
          (match arg
            [(model-var  val)
           
             (set-model-var-val! arg out)]
-           [_ (update-view arg out)])))]
+           [(sink-fact-node fact-id widget) (update-view widget fact-id out)])))]
         [(internal-connector inputinfo app-info)
          (put-in-collector-from-deployedR! connector output  turn-number)])))))
        
