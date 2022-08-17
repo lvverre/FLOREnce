@@ -142,14 +142,14 @@
  
 
 
-(define (make-map-node event-name expr env )
+(define (make-map-node event-name expr-var expr env )
   (display expr)
   (if (symbol? event-name)
       (let ((predecessor (lookup-node-var-error event-name env)))
         
         (cond (predecessor
               
-               (make-single-function-node   predecessor expr  event-name))
+               (make-single-function-node   predecessor expr  expr-var))
               (else
                (error (format "~a is not defined" event-name)))))
       (error (format "map: accepts event name as first argument not ~a" event-name))))
@@ -164,12 +164,12 @@
          (error (format "def: accepts event name as first argument not ~a" name)))))
 
 
-(define (make-filter-node event-name expr env )
+(define (make-filter-node event-name expr-var expr env )
   (if (symbol? event-name)
       (let ((predecessor (lookup-node-var-error event-name env)))
        
         (cond (predecessor
-               (filter-node -2 (list predecessor)  expr  event-name))
+               (filter-node -2 (list predecessor)  expr  expr-var))
               (else
                (error (format "~a is not defined" event-name)))))
       (error (format "filter: accepts event names as first argument not ~a" event-name))))
@@ -183,38 +183,44 @@
 
  
 
-(struct map-exp (var expr))
-(struct filter-exp (var expr))
-(struct or-exp (var1 var2))
+(struct map-exp (var-event var-expr expr))
+(struct filter-exp (var-event var-expr expr))
+(struct or-exp (var1-event var2-event))
 
 
 (begin-for-syntax 
   (define-syntax-class node
-    (pattern ((~literal map:) val:id expr:body)
-      #:attr value #'(map-exp 'val expr.value));(make-map-node (syntax-e #'val) #'body env )]
-    (pattern ((~literal filter:) val:id expr:body)
-      #:attr value #'(filter-exp 'val expr.value ))
+    (pattern ((~literal map:) var-e:id ((~literal lambda:) var:id expr:body))
+      #:attr value #'(map-exp 'var-e 'var expr.value));(make-map-node (syntax-e #'val) #'body env )]
+    (pattern ((~literal filter:) var-e:id ((~literal lambda:) var:id expr:body))
+      #:attr value #'(filter-exp 'var-e 'var expr.value ))
     (pattern ((~literal or:) name-left:id name-right:id)
       #:attr value #'(or-exp 'name-left 'name-right))))
 
+(define-syntax (v stx)
+  (syntax-parse stx
+    [(_ ll:node) #''ll.value]))
 
 
-
-(define (eval-node new-var node-expr env)
+(define (eval-node new-var node-expr env )
   (let ((node 
          (match node-expr
-           [(map-exp old-var body)
-            (make-map-node old-var body env)]
+           [(map-exp event-var expr-var body)
+             (make-map-node event-var expr-var   body  env)
+              
+             ]
            [(or-exp old-var1 old-var2)
             (make-or-node old-var1 old-var2 env)]
-           [(filter-exp old-var body)
-            (make-filter-node old-var body env)])))
+           [(filter-exp event-var expr-var body)
+            (make-filter-node event-var expr-var body  env)])))
     (define-node new-var node env)))
       
 
 
 
 
+
+         
 
 
 #|(define (add-id-number variable-symbol)
@@ -224,7 +230,6 @@
     variable-with-id))|#
 
 (define-syntax (reactor: stx)
-  (display "reactor")
   (syntax-parse stx
      [((~literal reactor:) name:id
                           ((~literal in:) ins:id ...+ (~optional (~seq #:model consts:id ...+)))
@@ -236,9 +241,13 @@
                 (eval-outs  '(outs ...))
                 
                 )
+         
           
-           (when (check-duplicates (append model-vars '(new-var ...) eval-ins))
+           (when (check-duplicates  (append model-vars '(new-var ...) eval-ins))
              (error "Reactor cannot have duplicate names in ins"))
+
+          
+         
          
            (if (local-env-contains?  eval-name 'react global-env)
                (error (format "Reactor with ~a already defined" 'name))
@@ -248,7 +257,8 @@
                       (in-nodes (map (lambda (name)
                                        (make-root-node! name node-env))
                                      eval-ins))
-                      (used-names (append model-vars eval-ins)))
+                      ;(used-names (append renamed-model-vars eval-ins))
+                      )
                  (for-each (lambda (var node-expr)
                              (eval-node var node-expr node-env))
                            '(new-var ...)

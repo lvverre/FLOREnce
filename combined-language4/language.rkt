@@ -18,6 +18,7 @@
 (require "combined/propagation2.rkt")
 (require "logical/logical-timer.rkt")
 (require "GUI-primitives.rkt")
+(require "GUI-input-output.rkt")
 (require (for-syntax syntax/parse))
 
 
@@ -40,7 +41,7 @@
 
 
 (define-syntax (new-module-begin stx)
-  (display "hier")
+ 
   (syntax-parse stx
    [ (_ ((~literal main:)
          ((~literal model:) model-exprs:def-model ...)
@@ -54,41 +55,45 @@
              
              (add-to-local-env! var
                                 'model
-                                (model-var (eval-reactor-body val (get-sub-env global-env 'model)))
+                                (eval-reactor-body val (get-sub-env global-env 'model))
                                 global-env))
            '(model-exprs.variable ...)
            (list model-exprs.value ...))
-      (define frames 
+      (define-values (frames timerIs)
       
-        (map
-         (lambda (id list-list-variables list-operators list-list-arguments)
-             
-                         (let* ((frame (new frame% [width 800] [height 800] [label (symbol->string id)]))
-                                (parent (new class-panel [parent frame][style (list 'vscroll 'hscroll)])))
-                           (create-new-subenv! global-env id)
-                         
-                           (map (lambda (variables operator arguments)
-                                  
-                                  (interpret-view-widget variables
-                                                         operator
-                                                         arguments
-                                               parent
-                                               id))
-                                list-list-variables
-                                list-operators
-                                list-list-arguments
-                                )
-                           frame
+        (for/fold ([frames '()]
+                   [timerIs '()])
+                  ([id   'view-exprs.ids]
+                   [list-list-variables 'view-exprs.variables]
+                   [list-operators 'view-exprs.operators]
+                   [list-list-arguments view-exprs.arguments])
+          (let* ((frame (new class-frame [width 800] [height 800] [label (symbol->string id)]))
+                 (parent (new class-panel [parent frame][style (list 'vscroll 'hscroll)])))
+            (create-new-subenv! global-env id)
+            (add-to-local-env! id id (sink-node frame) global-env)
+            
+            (values
+             (cons frame frames)
+             (append
+                     (append-map (lambda (variables operator arguments)
+                           
+                           (interpret-view-widget variables
+                                                  operator
+                                                  arguments
+                                                  parent
+                                          id))
+                         list-list-variables
+                         list-operators
+                         list-list-arguments)
+                     timerIs)
+                    
+                          )
                         
-                          ))
+                          )))
                              
                              
                        
-                       
-             'view-exprs.ids
-             'view-exprs.variables
-             'view-exprs.operators
-             view-exprs.arguments))
+             
            
                     
                   
@@ -106,7 +111,11 @@
                                                 (displayln "propagation")
                                                 (start-propagation-process  event-node arg)
                                                 (loop)
-                                                ]))))))]))
+                                                ])))))
+      (displayln timerIs)
+      (for-each (lambda (timerI)
+                  (send (timerI-timer timerI) start (* (timerI-interval timerI) 1000 )))
+                timerIs))]))
      
       ;#'(view-exprs ...)
       ;#'(react-exprs ...))

@@ -9,7 +9,49 @@
           )
 (provide start-propagation-process)
 
-(provide make-gauge make-button make-radio-box make-check-box  make-message make-slider class-panel make-list-box)
+(provide timerI? timerI-timer timerI-interval timerI-event make-timerI class-frame make-gauge make-button make-text-field make-radio-box make-check-box  make-message make-slider class-panel make-list-box)
+
+
+(define class-timer (class timer%
+                      (super-new)
+                      (define/public (number-of-args message)
+                        (match message
+                          ['start
+                           1]
+                          ['stop
+                           1]
+                           
+                          [_ (error (format "Timer cannot deal with ~a event" message))]))
+                      (define/public (update! message value) 
+                        (match message
+                          ['start
+                           (displayln value)
+                           (send this start (* 1000 (car value)))]
+                          ['stop
+                           (send this stop)]
+                          [_ (error (format "Timer cannot deal with ~a event" message))]))))
+                        
+
+(define class-frame (class frame%
+                      (super-new)
+                      (define/public (number-of-args message)
+                        (match message
+                          ['show
+                           1]
+                           
+                          [_ (error (format "Frame cannot deal with ~a event" message))]))
+                      (define/public (update! message value) 
+                        (match message
+                          ['show
+                           (when (not (boolean? value))
+                             (error (format "Window show expected a boolean ~a" value)))
+                           (send this show value)]
+                          [_ (error (format "Window cannot deal with ~a event" message))]))))
+                           
+
+
+
+                      
 
 (define class-panel (class panel%
                        (super-new )
@@ -22,10 +64,46 @@
                                      ))
                              (send this get-children)
                              info))
+                       
                      (define/override (container-size info)
                        (values (send this min-width)
                                (send this min-height)))))
 
+
+
+(define class-text-field
+  (class text-field%
+    (init co-x co-y)
+    (define x co-x)
+    (define y co-y) 
+    (define/override (get-x)
+      x)
+    (define/override (get-y)
+      y)
+    (super-new )
+    (define/public (number-of-args message)
+      (match message
+      ['enabled
+         1]
+        
+        ['clear
+         1]
+        ['change-value
+         1]
+        [_ (error (format "Text Field cannot deal with ~a event" message))]))
+    (define/public (update! message value) 
+      (match message
+        ['enabled
+         (when (not (boolean? (car value)))
+           (error (format "Enabling a button expected a boolean ~a" (car value))))
+         (send this enable (car value))]
+        ['clear
+         (send this set-value "")]
+        ['change-value
+         (when (not (string? (car value)))
+           (error (format "change value for text-field needs to be string")))
+         (send this set-value (car value))]
+        [_ (error (format "Text Field cannot deal with ~a event" message))]))))
 
 
 (define class-button (class button%
@@ -37,12 +115,18 @@
                        (define/override (get-y)
                          y)
                        (super-new )
+                        (define/public (number-of-args message)
+                          (match message
+                            ['enabled
+                             1]
+                            
+                            [_ (error (format "Button cannot deal with ~a event" message))]))
                        (define/public (update! message value) 
                          (match message
                            ['enabled
-                            (when (not (boolean? value))
+                            (when (not (boolean? (car value)))
                               (error (format "Enabling a button expected a boolean ~a" value)))
-                            (send this enable value)]
+                            (send this enable (car value))]
                            [_ (error (format "Button cannot deal with ~a event" message))]))))
                            
 
@@ -56,14 +140,22 @@
                        (define/override (get-y)
                          y)
                        (super-new )
+                           (define/public (number-of-args message)
+                          (match message
+                            ['enabled
+                             1]
+                            ['change-value
+                             1]
+                            
+                            [_ (error (format "Check box cannot deal with ~a event" message))]))
                           (define/public (update! message value) 
                          (match message
                            ['enabled
-                            (when (not (boolean? value))
+                            (when (not (boolean? (car value)))
                               (error (format "Enabling a checkbox expected a boolean ~a" value)))
-                            (send this enable value)]
+                            (send this enable (car value))]
                            ['change-value
-                            (send this set-value value)]
+                            (send this set-value (car value))]
                            [_ (error (format "Checkbox cannot deal with ~a event" message))]))))
   
 
@@ -76,22 +168,40 @@
                        (define/override (get-y)
                          y)
                        (super-new )
-                         (define/public (update! message value) 
+                          (define/public (number-of-args message)
+                          (match message
+                            ['enabled
+                             1]
+                            ['add
+                             2]
+                            ['remove
+                             1]
+                            ['clear
+                             1]
+                            
+                            [_ (error (format "List box cannot deal with ~a event" message))]))
+                         (define/public (update! message value)
+                           
                            (match message
                              ['enabled
-                              (when (not (boolean? value))
+                              (when (not (boolean? (car value)))
                                 (error (format "Enabling a list-box expected a boolean ~a" value)))
                               (send this enable value)]
                              ['add
-                              (if (not (string? value))
+                              (if (not (string? (car value)))
                                   (error "For adding an item to list-box expects a string")
-                                  (send this append value))]
+                                  (send this append (car value) (cadr value)))]
                              ['remove
-                              (if (not (number? value))
-                                  (error "For removing an item of a list-box a number is expected")
-                                  (send this delete value))]
+                              (let ((val (car value)))
+                                (let loop ([idx (- (send this  get-number) 1)]
+                                           )
+                                  (when (>= idx 0)
+                                         (when (equal? val (send this get-data idx))
+                                           (send this delete idx))
+                                         (loop (- idx 1)))))]
+                                       
                              ['clear
-                              (send this clear value)]
+                              (send this clear )]
                              [_ (error (format "List box cannot deal with ~a event" message))]))))
 
 (define class-radio-box (class radio-box%
@@ -103,15 +213,22 @@
                           (define/override (get-y)
                             y)
                           (super-new )
+                           (define/public (number-of-args message)
+                          (match message
+                            ['enabled
+                             1]
+                            ['change-selection
+                            1]
+                            [_ (error (format "Radio box cannot deal with ~a event" message))]))
                           (define/public (update! message value) 
                             (match message
                               ['enabled
-                               (when (not (boolean? value))
+                               (when (not (boolean? (car value)))
                                  (error (format "Enabling a radio-box expected a boolean ~a" value)))
-                               (send this enable value)]
+                               (send this enable (car value))]
                               ['change-selection
-                               (if (number? value)
-                                   (send this set-selection value)
+                               (if (number? (car value))
+                                   (send this set-selection (car value))
                                    (error "Change of selection value in radio-box expects a number"))]
                               [_ (error (format "Radio-box cannot deal with ~a event" message))]))))
 (define class-slider (class slider%
@@ -123,16 +240,23 @@
                           (define/override (get-y)
                             y)
                           (super-new )
+                        (define/public (number-of-args message)
+                          (match message
+                            ['enabled
+                             1]
+                            ['change-value
+                             1]
+                            [_ (error (format "Slider cannot deal with ~a event" message))]))
                         (define/public (update! message value) 
                          (match message
                            ['enabled
-                            (when (not (boolean? value))
+                            (when (not (boolean? (car value)))
                               (error (format "Enabling a slider expected a boolean ~a" value)))
-                            (send this enable value)]
+                            (send this enable (car value))]
                             ['change-value
-                             (when (not (number? value))
+                             (when (not (number? (car value)))
                                (error "To change value of slider expected a number"))
-                             (send this set-value value)]
+                             (send this set-value (car value))]
                             [_ (error (format "Slider cannot deal with ~a event" message))]))))
 
 (define class-message (class message%
@@ -144,12 +268,18 @@
                           (define/override (get-y)
                             y)
                           (super-new )
+                         (define/public (number-of-args message)
+                          (match message
+                            ['change-value
+                             1]
+                            
+                            [_ (error (format "Button cannot deal with ~a event" message))]))
                          (define/public (update! message value) 
                          (match message
                            ['change-value
-                            (when (not (string? value))
+                            (when (not (string? (car value)))
                               (error "To change value of message expected a string"))
-                            (send this set-label value)]
+                            (send this set-label (car value))]
                            [_ (error (format "Message cannot deal with ~a event" message))]))))
 
 (define class-gauge (class gauge%
@@ -161,12 +291,18 @@
                           (define/override (get-y)
                             y)
                           (super-new )
+                       (define/public (number-of-args message)
+                          (match message
+                            ['change-value
+                             1]
+                            
+                            [_ (error (format "Button cannot deal with ~a event" message))]))
                        (define/public (update! message value) 
                          (match message
                            ['change-value
-                            (when (not (number? value))
+                            (when (not (number? (car value)))
                               (error "To change value of gauge expected a number"))
-                            (send this set-value value)]
+                            (send this set-value (car value))]
                            [_ (error (format "Gauge cannot deal with ~a event" message))]))))
   
 
@@ -183,13 +319,14 @@
               (number? min-height)
               (string? label))
          (let* ((event (event-node '()))
+                
                 (button (new class-button [co-x x]
                              [label label]
                              [co-y y] [min-width min-width]
                              [min-height min-height] [parent parent]
                              [callback (lambda (button control-event)
-                                         (displayln "PUSHED")
-                                          (thread-send (vector-ref current-process-thread 0) (list event  'pushed)))])))
+                                         
+                                          (thread-send (vector-ref current-process-thread 0) (list event label )))])))
                
                ; (enable (enable-node  button)))
            (list event (sink-node button))))))
@@ -247,6 +384,21 @@
         (else (error (format "Wrong type of argument for make-radio-box")))))
 
 
+(define (make-text-field  parent x y min-width min-height label)
+  (cond ((and (number? x) (number? y) (number? min-width) (number? min-height)
+              (string? label))
+         (let* ((event (event-node '()))
+                (text-field (new  class-text-field [label label] [min-height min-height] [min-width min-width]
+                              [co-x x] [co-y y] [parent parent] [callback (lambda (text-field control-event)
+                                                                            (thread-send (vector-ref current-process-thread 0) (list event (send text-field get-value))))]))
+               
+                )
+                                                                                         
+              
+           (list event (sink-node text-field))))
+        (else (error (format "Wrong type of argument for make-text-field")))))
+
+
 (define (make-slider  parent x y min-width min-height label min max)
    (cond ((and (number? x) (number? y) (number? min-width) (number? min-height)
               (string? label) (number? min) (number? max))
@@ -282,12 +434,26 @@
         (else (error (format "Wrong type of argument for make-gauge")))))
 
 
+(struct timerI (event timer interval))
+
+(define (make-timerI parent interval)
+  (cond ((number? interval)
+         (let* ((event (event-node '()))
+                (timer (new class-timer [notify-callback (lambda ()
+                                                      (displayln "TIMERI")
+                                               (thread-send (vector-ref current-process-thread 0) (list event (current-seconds))))])))
+           (list (timerI event timer interval) (sink-node timer))))))
+
+
 (define (make-list-box parent x y min-width min-height label choices)
   (cond ((and (number? x) (number? y) (number? min-width) (number? min-height)
               (string? label) (list? choices) (andmap string? choices))
          (let* ((event (event-node '()))
                 (list-box (new class-list-box [choices choices][callback (lambda (selection control-event)
-                                                                           (thread-send (vector-ref current-process-thread 0) (list event (car (send selection get-selections)))))]        
+                                                                           (let* ((selections (send selection get-selections))
+                                                                                 (data (send selection get-data (car selections))))
+                                                                                                                                                 
+                                                                             (thread-send (vector-ref current-process-thread 0) (list event  data))))]        
                                                           #| (start-propagation  event
                                                                   (car (send selection get-selections))))]|#
                                                           [co-x x] [co-y y] [min-width min-width] [min-height min-height] [label label] [parent parent] ))

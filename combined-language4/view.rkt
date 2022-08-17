@@ -39,7 +39,9 @@
                                        (cons  'check-box make-check-box)
                                        (cons  'message make-message)
                                        (cons  'slider make-slider)
+                                       (cons 'timer make-timerI)
                                        (cons 'list-box make-list-box)
+                                       (cons 'text-field make-text-field)
                                        )))
 
 
@@ -79,7 +81,7 @@
 
 
 (define (interpret-view-widget vars operator args parent env-name)
-  (displayln args)
+   
   (let ((results (apply (hash-ref GUI-primitives operator  (lambda ()(error (format "~a is not defined for this expression" operator))))
                         (cons parent (map (lambda (arg)
                                            
@@ -88,32 +90,14 @@
     (when (not (= (length vars)
                   (length results)))
       (error "Number of given formal parameters is not equal to number of actual parameters given"))
-    (for ([var vars]
-          [res results])
-      (add-to-local-env! var env-name res global-env))))
-#|(define (interpret-view-widget stx parent)
-  (syntax-parse stx
-    [(op:id args ...)
-     (apply (lookup-local-var-error (syntax-e #'op) GUI-primitives)
-            (cons parent (map (lambda (arg)
-                                (eval-reactor-body(compile-expression arg ) global-env))
-                              (syntax->list #'(args ...)))))]))
+    (for/fold
+     ([timers '()])
+     ([var vars]
+      [res results])
+      (cond ((timerI? res)
+             (add-to-local-env! var env-name (timerI-event res) global-env)
+             (cons res timers))
+            (else 
+             (add-to-local-env! var env-name res global-env)
+             timers)))))
 
-(define (interpret-view stx)
-  (syntax-parse stx
-    [(((~literal def:) var:id ... body:expr) ...)
-     (let* ((frame (new frame% [width 800] [height 800] [label "view"]))
-            (parent (new class-panel [parent frame][style (list 'vscroll 'hscroll)])))
-       (for-each (lambda (vars body)
-                   (let ((evaluated-vals (interpret-view-widget body parent))
-                         (evaluated-vars (map syntax-e (syntax->list vars))))
-                     (when (not (= (length evaluated-vals)
-                                   (length evaluated-vars)))
-                       (error "Number of given formal parameters is not equal to number of actual parameters given"))
-                     (for ([var evaluated-vars]
-                           [val evaluated-vals])
-                       (add-to-local-env! var val global-env))))
-                 (syntax->list #'((var ...) ...))
-                 (syntax->list #'(body ...)))
-       (send frame show #t))
-     ]))|#

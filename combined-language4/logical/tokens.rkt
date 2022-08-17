@@ -15,9 +15,10 @@
                                                    (alpha-token-add-expiration-time token)))))
       
 (define (make-alpha-token-add  id args alive-interval)
+   (+ (current-seconds) alive-interval)
   (if (<= alive-interval 0)
       (alpha-token-add id args -1)
-      (alpha-token-add  id args alive-interval)))
+      (alpha-token-add  id args (+ (current-seconds) alive-interval))))
 
 (struct alpha-token-remove alpha-token ())
 (define (make-alpha-token-remove  id args)

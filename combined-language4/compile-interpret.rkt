@@ -3,7 +3,7 @@
 (require  "environment.rkt" )
 (require "interpret-build.rkt")
 (require syntax/parse)
-(provide compile  eval-reactor-body eval-rule-body rule-env eval-fact-body)
+(provide compile rule-constraint-env  eval-reactor-body eval-rule-body-where eval-rule-body-then rule-env eval-fact-body)
 
 
 
@@ -28,12 +28,17 @@
 
 (define reactor-env (make-hash
                             (list
+                             (cons 'string-append string-append)
+                             (cons 'string-contains?  string-contains? )
+                             (cons 'string-length string-length)
+                             (cons 'string-contains? string-contains?)
+                             (cons 'current-time current-seconds)
                              (cons 'car car)
                              (cons '? '?)
                              (cons 'cdr cdr)
                              (cons 'list-ref list-ref)
                              (cons 'remove remove)
-                             (cons 'index-of index-of)
+                             (cons 'index-of (lambda (x y) (displayln x) (displayln y) (displayln (index-of x y)) (index-of x y))) 
                              (cons 'remove* remove*)
                              (cons '+ prim-add)
                              (cons '- prim-sub)
@@ -58,6 +63,7 @@
 (define rule-env (make-hash
                             (list
                              (cons 'car car)
+                             (cons 'string-contains? string-contains?) 
                              (cons 'cdr cdr)
                              (cons 'list-ref list-ref)
                              (cons 'remove remove)
@@ -78,10 +84,31 @@
                              (cons 'false #f)
                              (cons 'symbol->string symbol->string)
                              (cons 'append append)
+                             (cons 'string-append string-append)
                              (cons 'number->string prim-number->string)
                              (cons 'string->number prim-string->number)
                              (cons 'or prim-or)
                              (cons 'list list))))
+
+(define rule-constraint-env (make-hash
+                            (list
+                             
+                             (cons 'string-contains?  string-contains?) 
+                            
+                                                       
+                             (cons 'equal? prim-equal?)
+                             (cons '> prim-greater-then?)
+                             (cons '< prim-smaller-then?)
+                             (cons '<= prim-smaller-equal-then?)
+                             (cons '>= prim-greater-equal-then?)
+                             (cons 'not prim-not)
+                             (cons 'and prim-and)
+                             (cons 'true  #t)
+                             (cons 'false #f)
+                             
+                       
+                             (cons 'or prim-or)
+                            )))
 
 (define (compile stx )
   (define (loop stx)
@@ -138,7 +165,7 @@
       [(app-exp op args)
        (let ((operator (if (var-exp? op)(eval-loop op) op))
              (arguments (map eval-loop args)))
-         (displayln arguments)
+        
          (apply operator arguments))]
       [
        (var-exp var)
@@ -146,16 +173,22 @@
        (lookup-var-error var env)]
       [(const-exp val) val]))
   
-  (displayln expr)
+  
   (eval-loop expr))
 
 
 (define (eval-reactor-body expr local-env)
   (eval expr (make-env local-env reactor-env)))
 
-(define (eval-rule-body expr local-env)
+(define (eval-rule-body-where expr local-env model-env)
+  (displayln "where")
+  (displayln expr)
+  (displayln "kk")
+  (eval expr (make-env local-env rule-constraint-env)))
+
+(define (eval-rule-body-then expr local-env model-env)
   (eval expr (make-env local-env rule-env)))
 
-(define (eval-fact-body expr local-env)
-  (eval expr (make-env local-env rule-env)))
+(define (eval-fact-body expr local-env model-env)
+  (eval expr (make-env local-env model-env rule-env)))
             

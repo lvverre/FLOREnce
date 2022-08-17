@@ -3,6 +3,7 @@
 
 (provide (all-defined-out))
  (require racket/gui/base
+          "../GUI-input-output.rkt"
           "../model.rkt"
           "../logical/logical-variables.rkt"
           "../GUI-update.rkt")
@@ -51,8 +52,7 @@
     
     (when (> (vector-length nodes) idx)
       (let ((current-node (vector-ref nodes idx)))
-        ;(displayln node-values)
-        ;(displayln current-node)
+     
         (match current-node
         
           
@@ -60,8 +60,7 @@
            ;check condition
            (let* ((condition (for/or ([root-idx roots])
                            (not (eq? (vector-ref node-values root-idx) 'empty)))))
-          ;   (display "condition:" )
-          ;   (displayln condition)
+         
              
              (if condition 
                  ;if true return nothing
@@ -75,6 +74,7 @@
           ;for a function execute the function on the give value and store result
           [(func:single-function-node idx predecessor function event-var)
            (let* ((predecessor-value (vector-ref node-values (car predecessor)))
+                
                   (local-env (hash-set model-env event-var predecessor-value)))
             
              (cond ((eq? 'empty predecessor-value)
@@ -102,7 +102,7 @@
                              (vector-ref node-values left-predecessor-idx)
                              ;right
                              (vector-ref node-values right-predecessor-idx))))
-            ; (displayln value)
+         
              (vector-set! node-values idx value)
              (loop  (+ idx 1)  ))]
             
@@ -128,7 +128,7 @@
 
 
 (define (execute-turn deployedr input  turn-number)
- 
+  
   (define ins (deployedR-ins deployedr))
   (define nodes (deployedR-dag deployedr))
   (define outs (deployedR-outs deployedr))
@@ -142,9 +142,10 @@
             [value input])
         
         (vector-set! values idx value)))
-  (let ((local-env (hash-map (deployedR-model-vars deployedr) (lambda (k v) (cons k (model-var-val v))))))
- 
-  (functional-propagate  nodes values (vector-length ins) (make-immutable-hash local-env))
+
+ (let ((local-env (make-immutable-hash (hash-map (deployedR-model-vars deployedr) (lambda (var val) (cons var (lookup-local-var-error val 'model global-env )))))
+                  )) 
+  (functional-propagate  nodes values (vector-length ins) local-env)
 
   (let ((output  (for/vector ([idx outs])
                     (vector-ref values idx))))
@@ -154,14 +155,20 @@
     
       (match connector
         [(external-connector args)
-         (for ([arg args]
-               [out output])
-           (when (not (equal? 'empty out))
+         (let loop
+           ([arg args]
+            [out output])
+           (if (equal? 'empty out)
+               (match arg  
+                 [(sink-fact-node fact-id widget) (update-view widget fact-id out)]
+                 [ val
          (match arg
-           [(model-var  val)
-          
-            (set-model-var-val! arg out)]
-           [_ (update-view arg out)])))]
+           
+           [(sink-fact-node fact-id widget) (update-view widget fact-id out)]
+           [ val
+             
+            
+            (update-local-env! val'model out global-env)])))]
         [(internal-connector inputinfo app-info)
          (put-in-collector-from-deployedR! connector output  turn-number)])))))
        

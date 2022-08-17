@@ -32,19 +32,20 @@
     (pattern ((~literal fact:) window:id input:id)
              #:attr place #''window
               #:attr var #''input)
+
+    (pattern ((~literal fact:) window:id)
+             #:attr place #''window
+             #:attr var #''window)
     
     (pattern input:id
              #:attr place  #''model
              #:attr var #''input)))
 
-(define-syntax (d stx)
-  (syntax-parse stx
-    [(_ v:input) #'v.place]))
+
   
 
 (define-syntax (deploy: stx)
 
-  (display "deloy")
   (syntax-parse stx 
     [((~literal deploy:) reactor-name:id (~literal with:) event-place:input  ...+  (~literal as:) new-name:id)
   
@@ -53,19 +54,20 @@
     (let ((reactor (lookup-local-var-error 'reactor-name 'react global-env)))
       (when (not (reactor? reactor))
         (error (format "Deploy expects name of reactor")))
-      (let*-values ([(events rest-names rest-places) (let loop ([events '()]
+      (let*-values ([(events model-vars ) (let loop ([events '()]
                                             [names (list event-place.var ...)]
                                             [places (list event-place.place ...)])
                                     (if (null? names)
-                                        (values events names places)
+                                        (values events names)
                                         (let ((event (lookup-local-var-error (car names) (car places) global-env)))
+                                         
                                           (cond ((event-node? event)
                                                  (loop (append events (list event )) (cdr names) (cdr places)))
                                                 (else
-                                                 (values events names places))))))]
+                                                 (values events names ))))))]
                                                  
                                           
-                  [ (model-vars) (let loop ([model-vars '()]
+                  #|[ (model-vars) (let loop ([model-vars '()]
                                             [names rest-names]
                                             [places rest-places])
                                         (cond ((null? names)
@@ -77,9 +79,13 @@
                                                                (cdr names) (cdr places)))
                                                         (else
                                                        
-                                                         (error (format "Deploy:with:as: needs model-var as argument gotten ~a" model-var))))))))])
+                                                         (error (format "Deploy:with:as: needs model-var as argument gotten ~a" model-var))))))))]
+|#
+)
        
-                   
+        (displayln (vector-length (reactor-ins reactor)))
+        (displayln (length (reactor-model-vars reactor)))
+        (displayln model-vars)
       (when (not (and (= (vector-length (reactor-ins reactor))
                          (length events))
                       (= (length (reactor-model-vars reactor))
@@ -87,17 +93,22 @@
                
         (error "deploy got wrong combination ~a \n ~a" events model-vars))
                                
-    
+   (displayln (map (lambda (var val)
+                                          (cons var val))
+                                       (reactor-model-vars reactor)
+                                       model-vars))
+        (displayln model-vars)
+        (newline)
     (let ( (deployed-reactor     (deployedR
                                   '()
                                 (reactor-ins reactor)
                                   (reactor-dag reactor)
                                   (reactor-outs reactor)
-                                  (make-immutable-hash (map (lambda (var val)
-                                                              (cons var val))
-                                                            (reactor-model-vars reactor)
-                                                            model-vars
-                                                            ))
+                                  (make-immutable-hash
+                                   (map (lambda (var val)
+                                          (cons var val))
+                                       (reactor-model-vars reactor)
+                                       model-vars))
                                   )))
 
       (add-to-local-env! 'new-name 'react deployed-reactor global-env)

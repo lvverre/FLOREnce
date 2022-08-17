@@ -114,6 +114,35 @@ Interface plus min underneath word
            
            #t))))))
 
+(define (make-detect type1? type2? type3? price-function name)
+  (lambda (event)
+    (let-values ([(type1 type2 type3)
+                  (cond ((type3? event)
+                         (values (get-first (filter type1?  order))
+                                 (get-first (filter type2? order))
+                                 event))                
+                        ((type1? event)
+                          (values event
+                                 (get-first (filter type2? order))
+                                 (get-first (filter type3? order))))  
+                        ((type2? event)
+                          (values (get-first (filter type1?  order))
+                                 event
+                                 (get-first (filter type3? order)))))])  
+                       
+  (cond ((not (and type1 type2 type3))
+         #f)
+        (else
+         
+         (let ((menu (food-menu name (price-function type1 type2 type3) (list type1 type2 type3))))
+         
+           (update-storage! (list menu) (list type1 type2 type3))
+           (displayln (* (if promo 0.5 1)(food-price menu)))
+           (set! total (+ total (* (if promo 0.5 1)(food-price menu))))
+           (for-each (lambda (food) (set! total (- total  (food-price food))))(list type1 type2 type3))
+           
+           #t))))))
+
 (define fries-small? (lambda (item) (equal? (food-id item) '|Fries Small|)))
 
 (define detect-chicken-nuggets-menu
@@ -267,6 +296,7 @@ Interface plus min underneath word
 
 (define frame (new frame% [label "Electronic menu"] [width 800] [height 800] ))
 (define panel (new vertical-panel%  [alignment (list 'left 'top)] [parent frame][style (list 'auto-vscroll 'auto-hscroll)]))
+(define panel-start (new horizontal-panel% [parent panel]))
 (define button-panel (new vertical-panel%  [parent panel][alignment (list 'left 'top)][min-height 500][style (list 'auto-vscroll 'auto-hscroll) ]))
 #|Layers|#
 (define drink-message (new message% [parent button-panel]  [label "DRINK"]))
@@ -319,7 +349,7 @@ Interface plus min underneath word
     (define message-layer (new horizontal-panel% [parent food-layer]))
     (define price-message (new message% [parent message-layer] [min-width 150][label (string-append (symbol->string type) ": €" (number->string price))]))
     (define button-layer (new horizontal-panel% [parent food-layer]))
-    (define plus-button  (new button% [parent button-layer] [label "+"] [callback (lambda (button event)
+    (define plus-button  (new button% [parent button-layer] [label (symbol->string type)] [callback (lambda (button event)
                                                                                     (process-food-button type))]))
     plus-button )
   (map make-button labels prices))
@@ -348,6 +378,7 @@ Interface plus min underneath word
                                          saus-layer))
 
 
+                                           
   
 
 #|ALLERGICS|#
@@ -368,12 +399,21 @@ Interface plus min underneath word
                         (list "MILK: " "EGGS: ")
                         (list dessert-buttons burgers-buttons)))
 
-  
-  (define reset (lambda ()
+
+(define start-session (new button% [parent start-panel] [label "Start"] [min-width 100] [min-height 20]
+                           [callback (lambda (button control)
+                                       (map (lambda (item)
+                                              (send item enable #t))
+                                            (append dessert-buttons snack-buttons salade-buttons saus-buttons fries-buttons drink-buttons burger-buttons)
+                                            ))]))
+                                      
+                                      
+
+  (define stop-session (lambda ()
                                                (set! order '())
                                                (set! total 0)
                                                (for-each (lambda (button)
-                                                           (send button enable #t))
+                                                           (send button enable #f))
                                                          (append dessert-buttons burgers-buttons))
                                                (for-each (lambda (check-box)
                                                            (send check-box set-value #f))

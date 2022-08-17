@@ -35,10 +35,14 @@
          ;(map (lambda (condition) (compile condition #t)) '(constraints ...))))
         (reactor-add (lookup-local-var-error 'reactor-name-add 'react global-env))
         (reactor-remove (lookup-local-var-error 'reactor-name-remove 'react global-env))
-        (model-vals-add (make-immutable-hash (map (lambda (var)
-                                                    (cons var (lookup-model-var var))) '(model-vars-add ...))))
-        (model-vals-remove (make-immutable-hash (map (lambda (var)
-                                                       (cons var (lookup-model-var var)))'(model-vars-remove ...))))
+        (model-vals-add (make-immutable-hash (map (lambda (var val)
+                                                    (cons var val))
+                                                  (reactor-model-vars reactor-add)
+                                                  '(model-vars-add ...))))
+        (model-vals-remove (make-immutable-hash (map (lambda (var val)
+                                                       (cons var val))
+                                                     (reactor-model-vars reactor-remove)
+                                                     '(model-vars-remove ...))))
                                
                             
          )

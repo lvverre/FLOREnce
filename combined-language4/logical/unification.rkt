@@ -41,10 +41,12 @@
       ;and has same value
      
       ( (equal? var-value val)
-           (equal? var-value '?) env)
+        (equal? var-value '?) env)
       ;symbol
       ((event-variable? var-value) (extend-pm-env var-value val env) env)
-      ((equal? '? var-value)
+      ((and
+        (equal? '? var-value)
+        remove?)
        (extend-pm-env  var val env) env)
       ;=> variable has not yet been added so add variable
       ;with correct value

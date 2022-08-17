@@ -95,7 +95,7 @@
         
   
 (define (collect* logic-connector-names logic-connector-places fact-name size collector )
-  (displayln "collect")
+
       (let* (
              (logic-connectors (map (lambda (var place)
                                      
@@ -146,7 +146,7 @@
 (define (remove-collect*  logic-connector-names
                 logic-connector-places   fact-name size )
   (collect*  logic-connector-names
-                logic-connector-places logic-connector-places fact-name
+                logic-connector-places fact-name
             size (remove-fact-collector 0 -1 -1 -1 )
             ))
     

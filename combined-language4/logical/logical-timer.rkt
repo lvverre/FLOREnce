@@ -13,7 +13,7 @@
                (lambda ()
                  
                  
-                   (display "timer")
+                   
                    (remove-expired-facts  ); events)
                    (propagate!)
                    )])))

@@ -112,12 +112,12 @@
 
 
   (define (execute-logic-connector node token turn)
-
+    (displayln "execute")
     (let* ((order-args (alpha-node-args (beta-token-owner token)))
          (pm-env  (beta-token-pm token))
          (input (for/vector ([variable order-args])
                   (lookup-event-variable  variable pm-env)))
-         
+         (displayln token)
          (deployedR (if (add-token? token)
                         (logic-connector-deployedR-add node)
                         (logic-connector-deployedR-remove node))))
@@ -128,12 +128,11 @@
 
  
   (define (execute-production-node node token purpose  turn-number)
-  
+    (displayln "production")
     
-    (newline)
     (when (add-token? token)
       
-      (let* ((args   (map (lambda (arg) (eval-rule-body arg (beta-token-pm token)))
+      (let* ((args   (map (lambda (arg) (eval-rule-body arg (beta-token-pm token) (get-sub-env global-env 'model)))
                           (production-node-args node)))        
              (token (if purpose
                         (make-alpha-token-add  (production-node-name node) args (emit-node-alive-time node))
@@ -151,46 +150,43 @@
   
   (define (compute-constraint event-env constraint)
     
-      (let ((result (eval-rule-body   constraint event-env)))
+      (let ((result (eval-rule-body   constraint event-env (get-sub-env global-env 'model))))
         result))
        
   
   (define (execute-alpha-node token alpha-node  )
-   
+    (displayln "alpha")
     (cond ((add-token? token)
-           
+        
            (when (equal? (alpha-token-id token) (alpha-node-event-id alpha-node))
-             (displayln (alpha-node-event-id alpha-node))
+            
              (let ((event-env (unify-args (alpha-token-args token)
                                           (alpha-node-args alpha-node)
                                           (make-hash)
                                           (add-token? token))))
                
                (when event-env
-                 
+                
                  (when (compute-constraint event-env (alpha-node-constraints alpha-node))
-                   
+                   (displayln token)
                    (update-pms-and-propagate token event-env alpha-node  ))))))
           (else
-           (displayln "RRR")
-           (displayln (alpha-token-id token))
-           (displayln (alpha-node-event-id alpha-node))
+         
            (when (equal? (alpha-token-id token) (alpha-node-event-id alpha-node))
-             (displayln (alpha-node-args alpha-node))
+           
            (let ((existing-pms                  (filter-node-partial-matches alpha-node))
                  (event-env (unify-args (alpha-token-args token)
                                         (alpha-node-args alpha-node)
                                         (make-hash)
                                         (add-token? token))))
-             (displayln event-env)
-             (displayln existing-pms)
+            
              (when event-env
                (for-each
                 (lambda (opposite-partial-match)
-                  (displayln "OPPOSITE")
-                  (displayln opposite-partial-match)
+                 
                   (let ((combined-partial-match-env (try-to-combine-env event-env (pm-env opposite-partial-match))))
                     (when combined-partial-match-env
+                  
                       (update-pms-and-propagate
                        token
                        (pm-env opposite-partial-match)
@@ -199,6 +195,7 @@
 
   
   (define (execute-join-node token opposite-partial-matches join-node  )
+(displayln "join")
     
   (let ((constraints (join-node-constraints join-node))
         (token-partial-match-env  (beta-token-pm token)))
@@ -211,8 +208,7 @@
            
            (when
                (compute-constraint combined-partial-match-env constraints)
-             
-            
+             (displayln token)
              (update-pms-and-propagate token combined-partial-match-env join-node  )))))
      opposite-partial-matches)))
 
@@ -223,6 +219,7 @@
 
   
   (define (update-pms-and-propagate old-token new-pm-env node   )
+   
     (let ((new-beta-token (if (add-token? old-token)
                          (make-beta-token-add  new-pm-env  node)
                          (make-beta-token-remove new-pm-env  node)))
@@ -260,7 +257,8 @@
          (execute-join-node token (filter-node-partial-matches left-predecessor) node  ))]
     ;[(logic-connector _ _)
     [(logic-connector _ _)
-     
+     (displayln 'logic-connector)
+     (displayln token)
      (add-to-priority-queue! turn-number node token )]
      [_
       
@@ -290,6 +288,7 @@
 
 (define (expired? pm)
   
+ 
   (and (not (= -1 (alpha-pm-expiration-time pm)))
        (> (current-seconds) (alpha-pm-expiration-time pm))))
 
@@ -297,6 +296,7 @@
   (for/fold ([keep '()]
              [remove '()])
             ([partial-match (filter-node-partial-matches node )])
+    
     (if (expired? partial-match)
         (begin (values keep (cons partial-match remove)))
         (begin  (values (cons partial-match keep) remove)))))
@@ -347,14 +347,23 @@
 ;propagates an event with name NAME and args -values trough the DAG
 
 
+
+(begin-for-syntax 
+  (define-syntax-class fact
+    (pattern ((~literal fact:) name:id args ...)
+             #:attr token #'(token 'name  (map (lambda (arg)
+                                                 (eval-fact-body (compile-expression-without-syntax arg ) (make-hash) (get-sub-env global-env 'model)))
+                                               '(args ...))))))
+
+
 (define-syntax (add: stx)
   (syntax-parse stx
-    [((~literal add:) FACT (~literal for:) alive-interval:number)
-  #'(cond ((token? FACT)
-           (let ((alpha-t (alpha-token-add (token-id FACT)
-                                           (token-args FACT)
-                                           alive-interval)))
-             (add-to-priority-queue! 50 'root alpha-t )))
+    [((~literal add:) FACT:fact (~literal for:) alive-interval:number)
+     #'(let ((alpha-t (make-alpha-token-add (token-id FACT.token)
+                                            (token-args FACT.token)
+                                            alive-interval)))
+        
+         (add-to-priority-queue! 50 'root alpha-t ))]))
               
       #|(start-propagation
        (make-alpha-token-add (token-id FACT)(token-args FACT) alive-interval)
@@ -363,14 +372,13 @@
        
       )|#
            
-          (else (error (format "~a is not a fact" FACT))))]))
+       
 (define-syntax (remove: stx)
   (syntax-parse stx
-    [((~literal remove:) FACT)
-     #'(cond ((token? FACT)
-              (let ((alpha-t (alpha-token-remove (token-id FACT)
-                                                 (token-args FACT))))
-                (add-to-priority-queue! 50 'root alpha-t )))
+    [((~literal remove:) FACT:fact)
+     #'(let ((alpha-t (alpha-token-remove (token-id fact.token)
+                                          (token-args fact.token))))
+         (add-to-priority-queue! 50 'root alpha-t ))]))
               
            
            #|(start-propagation
@@ -378,15 +386,17 @@
             50
        
        )|#
-             (else (error (format "~a is not a fact" FACT))))]))
+           
 
-(define-syntax (fact: stx)
+
+
+#|(define-syntax (fact: stx)
   (syntax-parse stx
     [((~literal fact:) name:id args ...)
       #'(token 'name (map (lambda (arg)
                             
                            (eval-fact-body (compile-expression-without-syntax arg ) (make-hash)))
-                          '(args ...)))]))
+                          '(args ...)))]))|#
      
 
 (define (propagate-from-root token   turn-number)

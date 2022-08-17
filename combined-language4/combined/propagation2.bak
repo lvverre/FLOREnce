@@ -15,34 +15,34 @@
 (define (propagate!)
   (let loop
     ()
-    (display "loop")
+   
     
     (when (not (empty? priority-queue))
-      
+   
       (match (pn-pair-val (serve-priority-queue!))
         [(vnt-pair value node turn)
          #:when (deployedR? node)
-         (displayln "deployedR")
+        
          (execute-turn node  value turn)]
+       
         [(vnt-pair value node turn)
          #:when (logic-connector? node)
-         (displayln "logic-connector")
+      
          (execute-logic-connector node value turn)]
         [(vnt-pair token 'root turn)
-         (display 'root)
-         (displayln token)
+        
          (cond ((add-token? token)
-                (display "add propagation")
-                (set-expiration-time! token)
+                
+               ; (set-expiration-time! token)
                 (start-propagation token turn))
-               (else (display "remove propagation")(start-propagation token  turn)))]
+               (else(displayln "remove token") (displayln token)(start-propagation token  turn)))]
         [(vnt-pair token node turn)
          #:when (emit-node? node)
-         (displayln "EMIT")
+       
          (execute-production-node node token #t  turn)]
         [(vnt-pair token node turn)
          #:when (retract-node? node)
-         (displayln "RETRACT")
+      
          (execute-production-node node token #f turn)]
        #| [(vnt-pair token 'remove-root turn)
          

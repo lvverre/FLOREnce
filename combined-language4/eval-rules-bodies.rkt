@@ -4,8 +4,9 @@
 (require (for-syntax syntax/parse))
 (require  "environment.rkt" )
 (require "interpret-build.rkt")
+(require "compile-interpret.rkt")
 (provide  (for-syntax body))
-(provide  compile-constraint-rules compile-expression compile-expression-without-syntax compile-constraint-rules-without-syntax)
+(provide   compile-expression compile-expression-without-syntax compile-constraint-rules-without-syntax)
 
 (provide compile-constraint-rules)
 (define constraint-env (make-hash
@@ -39,13 +40,14 @@
         (let ([compiled-args (map compile-constraint args )])
        (and-exp compiled-args))]
       [`(,op ,args ...)
-       (let ([val-op (lookup-node-var-error op  constraint-env)]
-             [val-args (map compile-constraint-atoms args )])
+       (let ([val-op (lookup-node-var-error op  rule-constraint-env)]
+             [val-args (map compile-constraint args )])
          (app-exp val-op val-args))]
+      [val (compile-constraint-atoms val)]
       ))
   (let ([val-constraints (map compile-constraint constraints)])
     (and-exp val-constraints)))
- 
+
 (define (compile-constraint-rules constraints)
   (define (compile-constraint-atoms atom)
     (syntax-parse atom
@@ -70,8 +72,10 @@
        #'(and-exp compiled-args))]
       [(op:id args ...)
        (with-syntax ([val-op (lookup-node-var-error (syntax-e #'op) constraint-env)]
-                     [val-args (map compile-constraint-atoms (syntax->list #'(args ...)))])
+                     [val-args (map compile-constraint (syntax->list #'(args ...)))])
          #'(app-exp val-op val-args))]
+      [val (with-syntax ([arg (compile-constraint-atoms (syntax-e #'val))])
+             #'arg)]
       ))
   (with-syntax ([val-constraints (map compile-constraint constraints)])
   #`(and-exp val-constraints)))
@@ -147,11 +151,7 @@
      
 
                    
-(define-syntax (v stx)
-  (syntax-parse stx
-    [(_ l:body)
-   ;  (with-syntax ([l (compile-expression #'body)])
-       #'(display l.value)]))
+
 
 
 

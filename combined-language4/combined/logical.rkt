@@ -117,7 +117,7 @@
          (pm-env  (beta-token-pm token))
          (input (for/vector ([variable order-args])
                   (lookup-event-variable  variable pm-env)))
-         
+         (displayln token)
          (deployedR (if (add-token? token)
                         (logic-connector-deployedR-add node)
                         (logic-connector-deployedR-remove node))))
@@ -128,12 +128,11 @@
 
  
   (define (execute-production-node node token purpose  turn-number)
-  
+   
     
-    (newline)
     (when (add-token? token)
       
-      (let* ((args   (map (lambda (arg) (eval-rule-body arg (beta-token-pm token)))
+      (let* ((args   (map (lambda (arg) (eval-rule-body-then arg (beta-token-pm token) (get-sub-env global-env 'model)))
                           (production-node-args node)))        
              (token (if purpose
                         (make-alpha-token-add  (production-node-name node) args (emit-node-alive-time node))
@@ -151,46 +150,43 @@
   
   (define (compute-constraint event-env constraint)
     
-      (let ((result (eval-rule-body   constraint event-env)))
+      (let ((result (eval-rule-body-where   constraint event-env (get-sub-env global-env 'model))))
         result))
        
   
   (define (execute-alpha-node token alpha-node  )
    
     (cond ((add-token? token)
-           
+        
            (when (equal? (alpha-token-id token) (alpha-node-event-id alpha-node))
-             (displayln (alpha-node-event-id alpha-node))
+            
              (let ((event-env (unify-args (alpha-token-args token)
                                           (alpha-node-args alpha-node)
                                           (make-hash)
                                           (add-token? token))))
                
                (when event-env
-                 
+                
                  (when (compute-constraint event-env (alpha-node-constraints alpha-node))
-                   
+                   (displayln token)
                    (update-pms-and-propagate token event-env alpha-node  ))))))
           (else
-           (displayln "RRR")
-           (displayln (alpha-token-id token))
-           (displayln (alpha-node-event-id alpha-node))
+         
            (when (equal? (alpha-token-id token) (alpha-node-event-id alpha-node))
-             (displayln (alpha-node-args alpha-node))
+           
            (let ((existing-pms                  (filter-node-partial-matches alpha-node))
                  (event-env (unify-args (alpha-token-args token)
                                         (alpha-node-args alpha-node)
                                         (make-hash)
                                         (add-token? token))))
-             (displayln event-env)
-             (displayln existing-pms)
+            
              (when event-env
                (for-each
                 (lambda (opposite-partial-match)
-                  (displayln "OPPOSITE")
-                  (displayln opposite-partial-match)
+                 
                   (let ((combined-partial-match-env (try-to-combine-env event-env (pm-env opposite-partial-match))))
                     (when combined-partial-match-env
+                  
                       (update-pms-and-propagate
                        token
                        (pm-env opposite-partial-match)
@@ -199,6 +195,7 @@
 
   
   (define (execute-join-node token opposite-partial-matches join-node  )
+
     
   (let ((constraints (join-node-constraints join-node))
         (token-partial-match-env  (beta-token-pm token)))
@@ -212,7 +209,6 @@
            (when
                (compute-constraint combined-partial-match-env constraints)
              
-            
              (update-pms-and-propagate token combined-partial-match-env join-node  )))))
      opposite-partial-matches)))
 
@@ -223,6 +219,7 @@
 
   
   (define (update-pms-and-propagate old-token new-pm-env node   )
+   
     (let ((new-beta-token (if (add-token? old-token)
                          (make-beta-token-add  new-pm-env  node)
                          (make-beta-token-remove new-pm-env  node)))
@@ -260,7 +257,8 @@
          (execute-join-node token (filter-node-partial-matches left-predecessor) node  ))]
     ;[(logic-connector _ _)
     [(logic-connector _ _)
-     
+     (displayln 'logic-connector)
+     (displayln token)
      (add-to-priority-queue! turn-number node token )]
      [_
       
@@ -290,6 +288,7 @@
 
 (define (expired? pm)
   
+ 
   (and (not (= -1 (alpha-pm-expiration-time pm)))
        (> (current-seconds) (alpha-pm-expiration-time pm))))
 
@@ -297,6 +296,7 @@
   (for/fold ([keep '()]
              [remove '()])
             ([partial-match (filter-node-partial-matches node )])
+    
     (if (expired? partial-match)
         (begin (values keep (cons partial-match remove)))
         (begin  (values (cons partial-match keep) remove)))))
@@ -352,16 +352,17 @@
   (define-syntax-class fact
     (pattern ((~literal fact:) name:id args ...)
              #:attr token #'(token 'name  (map (lambda (arg)
-                                                 (eval-fact-body (compile-expression-without-syntax arg ) (make-hash)))
+                                                 (eval-fact-body (compile-expression-without-syntax arg ) (make-hash) (get-sub-env global-env 'model)))
                                                '(args ...))))))
 
 
 (define-syntax (add: stx)
   (syntax-parse stx
     [((~literal add:) FACT:fact (~literal for:) alive-interval:number)
-     #'(let ((alpha-t (alpha-token-add (token-id FACT.token)
-                                       (token-args FACT.token)
-                                       alive-interval)))
+     #'(let ((alpha-t (make-alpha-token-add (token-id FACT.token)
+                                            (token-args FACT.token)
+                                            alive-interval)))
+        
          (add-to-priority-queue! 50 'root alpha-t ))]))
               
       #|(start-propagation
@@ -404,5 +405,5 @@
               (when (> turn-number 0)
                 (logic-propagate token node turn-number ))
               )
-            (reverse (root-registered-nodes root))))
+            (root-registered-nodes root)))
 

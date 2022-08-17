@@ -4,9 +4,13 @@
 
 
 (define (number-operation procedure name)
-  (lambda ( first second)
-    (if (and (number? first) (number? second))
-         (procedure first second)
+  (lambda (first . second)
+    (displayln" proc")
+    (displayln procedure)
+    (displayln first )
+    (displayln second)
+    (if (and (number? first) (foldl (lambda (val acc) (and acc (number? val))) #t second))
+         (apply procedure (cons first second))
         (error (format "~a ~a expected two numbers" first second)))))
 
 (define prim-add (number-operation + '+))
@@ -19,14 +23,14 @@
   (equal? first second))
       
 
-(define (prim-string-append  first second)
-  (if (and (string? first) (string? second))
-      (string-append  first second)
+(define (prim-string-append  first . second )
+  (if (and (string? first) (foldl (lambda (val acc) (and acc (string? val)))#t second))
+      (apply string-append  (cons first second))
       (error "String-append only accepts strings")))
 
 
 (define (number-comparison procedure name)
-  (lambda (env first second)
+  (lambda (first second)
     (let ((result 
     (if (and (number? first) (number? second))
         (procedure  first  second)            

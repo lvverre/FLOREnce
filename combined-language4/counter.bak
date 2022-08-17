@@ -2,25 +2,33 @@
 (main: (model: (def: counter_1 0)
                (def: counter_2 0))
        (view:
-        (window-def: jl
-                     (def: button-plus-event-1 button-plus-inable-1 (button 0 0 40 40 "+"))
-                     (def: button-min-event button-min-inable-1 (button 50 0 40 40 "-"))
-                     (def: fanta-label (message  100 0 20 "0" )))
-        (def: button-plus-event-2 button-plus-inable-2 (button 0 0 40 40 "+"))
-        (def: button-min-event-2 button-min-inable-2 (button 50 0 40 40 "-"))
-        (def: fanta-label-2 (message  100 0 20 "0" )))
+        (def-window: jl
+          (def: button-plus-in button-plus-out (button 0 0 40 40 "+"))
+          (def: button-min-in button-min-out (button 100 0 40 40 "-"))
+          (def: l n (button 200 200 40 40 "v"))
+          (def: fanta-out (message  200 0 20 40 "0" )))
+        (def: sourceTimer (timer 1))
+          (def: button-plus-in button-plus-out (button 0 0 40 40 "+"))
+        (def: button-min-in button-min-out (button 100 0 40 40 "-"))
+        (def: fanta-out (message  200 0 20 40 "0" )))
        (react:
-        (reactor:
-         reactor-counter
-         (input: plus-b min-b #:model counter)
-         (def: state-min (map: min-b (- counter 1)))
-         (def: state-plus (map: plus-b (+ counter 1)))
-         (def: state (or: state-min state-plus))
-         (def: state-string (map: state (number->string state)))
-         (out: state state-string))
-        (deploy: reactor-counter with: (fact: jl button-plus-event-1) (fact: jl button-min-event) counter_1 as: counter1)
-        (deploy: reactor-counter with: (fact: main button-plus-event-2) (fact: main button-min-event-2) counter_2 as: counter2)
-        (update: counter_1 (fact: main fanta-label) with: counter1)
-        (update: counter_2 (fact: jl fanta-label) with: counter2)
+       
+
+        
+        
+        (reactor: reactor-counter
+                  (in: plus-b min-b #:model counter)
+                  (def: state-min (map: min-b (lambda: c (- counter 1))));(c ->(- c 1))))
+                  (def: state-plus (map: plus-b (lambda: c (+ counter 1))))
+                  (def: state (or: state-min state-plus))
+                  (def: state-string (map: state (lambda: s (number->string s))))
+                  (out: state state-string))
+        (deploy: reactor-counter
+                 with: (fact: jl button-plus-in) (fact: jl button-min-in) counter_1
+                 as: counter1)
+        (deploy: reactor-counter
+                 with: (fact: main sourceTimer) (fact: main button-min-in) counter_2 as: counter2)
+        (update: counter_1 (fact: jl fanta-out change-value) with: counter1)
+        (update: counter_2 (fact: main fanta-out change-value) with: counter2)))
         
                        

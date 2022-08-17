@@ -1,0 +1,1047 @@
+#lang reader "reader.rkt"
+(main:
+ (model:
+  (def: nothing 0)
+  (def: cFanta 120)
+  (def: cCola 120)
+  (def: cIce-tea 120)
+  (def: cOrange-juice 80)
+  (def: cBig-mac 290)
+  (def: cVeggie 243)
+  (def: cChicken 283)
+  (def: cBacon 312)
+  (def: cChocalate-ice 190)
+  (def: cVanille-ice 180)
+  (def: cVanille-ice-nuts 201)
+  (def: cChicken-nuggets 240)
+  (def: cChicken-wings 240)
+  (def: cCheese-croquettes 230)
+  (def: cfries-small 160)
+  (def: cfries-big 290)
+  (def: cSalade-small 80)
+  (def: cSalade-big 160)
+  (def: cFrit-fondue 310)
+  (def: cMayo 50)
+  (def: cKetchup 50)
+
+  
+  (def: small? #t)
+  (def: big? #f) 
+
+  (def: pFanta 3.1)
+  (def: pCola 3.1)
+  (def: pIce-tea 3.1)
+  (def: pOrange-juice 2.2)
+  (def: pBig-mac 7.3)
+  (def: pVeggie 5.1)
+  (def: pBacon 6.5)
+  (def: pChicken 7.1)
+  (def: pChocolate-ice 2.2)
+  (def: pVanille-ice 2.2)
+ ; (def: pVanille-ice-nuts 2.7)
+  (def: pSalade-small 3.5)
+  (def: pSalade-big 6.5)
+  (def: pFries-small 3.5)
+  (def: pFries-big 4.5)
+  (def: pFrit-fondue 4.7)
+  (def: pChicken-nuggets 4.7)
+  (def: pChicken-wings 4.7)
+  (def: pCheese-croquettes 4.2)
+  (def: pMayo 1.5)
+  (def: pKetchup 1.5)
+
+  (def: price-1 (list))
+  (def: price-2 (list))
+  (def: order-1 (list))
+  (def: order-2 (list))
+  (def: customerID 0)
+  (def: customerID-1 0)
+  (def: customerID-2 0)
+  (def: currentItemID-1 0)
+  (def: currentItemID-2 0)
+;  (def: total-calories 0)
+;  (def: max-total-calories 0)
+  (def: total-1 0)
+  (def: total-2 0)
+  (def: current-selected-item-1 #f)
+  (def: current-selected-item-2 #f)
+  (def: inSession-1 #f)
+  (def: inSession-2 #f)
+  
+   )
+ 
+ (view:
+  (def-window: client-1
+    ;DRINKS
+    (def: drinksL-sink (message 0 0 100 20 "DRINKS" ))
+    (def: fantaL-sink (message 0 20 100 20 "Fanta: € 3.1" ))
+    (def: fantaB-source fanta-plusB-sink (button 0 40 60 30 "+"))
+    
+    (def: colaL-sink (message 135 20 100 20 "Coca Cola: € 3.1"))
+    (def: colaB-source colaB-sink (button 135 40 60 30 "+"))
+ 
+    (def: ice-teaL-sink (message 270 20 100 20 "Ice Tea: € 3.1"))
+    (def: ice-teaB-source ice-teaB-sink (button 270 40 60 30 "+"))
+
+    (def: orange-juiceL-sink (message 405 20 100 20 "Orange Juice: € 3.1"))
+    (def: orange-juiceB-source orange-juiceB-sink (button 405 40 60 30 "+"))
+    
+  
+  
+    ;BURGER
+    (def: burgerL-sink (message 0 80  100 20 "BURGERS"))
+    (def: big-macL-sink (message 0 100 100 20 "Big Mac: € 7.2"))
+    (def: big-macB-source big-macB-sink (button 0 120 60 30 "+"))
+    
+    (def: veggieL-sink (message 135 100 100 20 "Veggie: € 5.1 "))
+    (def: veggieB-source veggieB-sink (button 135 120 60 30 "+"))
+    
+    (def: baconL-sink (message 270 100 100 20 "Bacon: € 6.5"))
+    (def: baconB-source baconB-sink (button 270 120 60 30 "+"))
+    
+    (def: chickenL-sink (message 405 100 100 20 "Chicken: € 7.1"))
+    (def: chickenB-source chickenB-sink (button 405 120 60 30 "+"))
+  
+  ;DESSERT
+  (def: dessertL-sink (message 0 160  100 20 "DESSERTS"))
+  (def: chocolate-iceL-sink (message 0 180 100 20 "Chocolate Ice: € 2.2"))
+  (def: chocolate-iceB-source chocolate-iceB-sink (button 0 200 60 30 "+"))
+
+  (def: vanille-iceL-sink (message 135 180 100 20 "Vanille Ice: € 2.2"))
+  (def: vanille-iceB-source vanille-iceB-sink (button 135 200 60 30 "+"))
+
+ 
+  
+  ;SNACKS
+    (def: snackL-sink (message 0 240  100 20 "SNACKS"))
+    (def: chicken-nuggetsL-sink (message 0 260 100 20 "Chicken Nuggets: € 4.7"))
+    (def: chicken-nuggetsB-source chicken-nuggetsB-sink (button 0 280 60 30 "+"))
+    
+    (def: chicken-wingsL-sink (message 135 260 100 20 "Chicken Wings: € 4.7"))
+    (def: chicken-wingsB-source chicken-wingsB-sink (button 135 280 60 30 "+"))
+  
+    (def: cheese-croquettesL-sink  (message 270 260 150 20 "Cheese croquettes: 4.7"))
+    (def: cheese-croquettesB-source cheese-croquettesB-sink (button 270 280 60 30 "+"))
+  
+  
+  ;FRIES
+    (def: friesL-sink (message 0 320  100 20 "FRIES"))
+    (def: fries-smallL-sink (message 0 340 100 20 "Fries Small: € 3.5"))
+    (def: fries-smallB-source fries-smallB-sink (button 0 360 60 30 "+"))
+    (def: fries-bigL-sink (message 135 340 100 20 "Fries Big: € 4.7"))
+    (def: fries-bigB-source fries-bigB-sink (button 135 360 60 30 "+"))
+    (def: frit-fondueL-sink  (message 270 340 150 20 "Cheese croquettes: 4.2"))
+    (def: frit-fondueB-source frit-fondueB-sink (button 270 360 60 30 "+"))
+  ;SALADE
+    (def: saladeL-sink (message 0 400  100 20 "SALADES"))
+    (def: salade-smallL-sink (message 0 420 100 20 "Salade Small: € 3.5"))
+    (def: salade-smallB-source salade-smallB-sink (button 0 440 60 30 "+"))
+    (def: salade-bigL-sink (message 135 420 100 20 "Salade Big: € 6.5"))
+    (def: salade-bigB-source salade-bigB-sink (button 135 440 60 30 "+"))
+    ;SAUS
+    (def: sausL-sink (message 0 480 100 20 "SAUS"))
+    (def: mayoL-sink (message 0 500 100 20 "Mayonnaise: € 3.5"))
+    (def: mayoB-source mayoB-sink (button 0 520 60 30 "+"))
+    (def: ketchupL-sink (message 135 500 100 20 "Ketchup: € 6.5"))
+    (def: ketchupB-source ketchupB-sink (button 135 520 60 30 "+"))
+    ;ALLERGIC
+    (def: allergicL-sink (message 0 560 100 20 "ALLERGICS"))
+    (def: milkC-source milkC-sink (check-box 0 580 40 50 "Milk"))
+    (def: eggsC-source eggsC-sink (check-box 55 580 40 50 "Eggs"))
+ 
+  
+    ;ORDER
+    (def: orderLB-source orderLB-sink (list-box 0 650 700 200 "ORDER: " (list)))
+    (def: removeB-source removeB-sink (button 0 855 50 30 "Remove"))
+  
+  ;TOTAL
+    (def: totalL-sink (message 0 895 50 20 "Total: "))
+    (def: sum-totalL-sink (message 50 915 50 20 "0"))
+    (def: payerB-source payerB-sink (button 0 935 60 30 "Payer"))
+    (def: abortB-source abortB-sink (button 65 935 60 30 "Abort"))
+  
+
+  
+
+  )
+
+  (def-window: client-2
+    (def: drinksL-sink (message 0 0 100 20 "DRINKS" ))
+    (def: fantaL-sink (message 0 20 100 20 "Fanta: € 3.1" ))
+    (def: fantaB-source fanta-plusB-sink (button 0 40 60 30 "+"))
+    
+    (def: colaL-sink (message 135 20 100 20 "Coca Cola: € 3.1"))
+    (def: colaB-source colaB-sink (button 135 40 60 30 "+"))
+ 
+    (def: ice-teaL-sink (message 270 20 100 20 "Ice Tea: € 3.1"))
+    (def: ice-teaB-source ice-teaB-sink (button 270 40 60 30 "+"))
+
+    (def: orange-juiceL-sink (message 405 20 100 20 "Orange Juice: € 3.1"))
+    (def: orange-juiceB-source orange-juiceB-sink (button 405 40 60 30 "+"))
+    
+  
+  
+    ;BURGER
+    (def: burgerL-sink (message 0 80  100 20 "BURGERS"))
+    (def: big-macL-sink (message 0 100 100 20 "Big Mac: € 7.2"))
+    (def: big-macB-source big-macB-sink (button 0 120 60 30 "+"))
+    
+    (def: veggieL-sink (message 135 100 100 20 "Veggie: € 5.1 "))
+    (def: veggieB-source veggieB-sink (button 135 120 60 30 "+"))
+    
+    (def: baconL-sink (message 270 100 100 20 "Bacon: € 6.5"))
+    (def: baconB-source baconB-sink (button 270 120 60 30 "+"))
+    
+    (def: chickenL-sink (message 405 100 100 20 "Chicken: € 7.1"))
+    (def: chickenB-source chickenB-sink (button 405 120 60 30 "+"))
+  
+    ;DESSERT
+    (def: dessertL-sink (message 0 160  100 20 "DESSERTS"))
+    (def: chocolate-iceL-sink (message 0 180 100 20 "Chocolate Ice: € 2.2"))
+    (def: chocolate-iceB-source chocolate-iceB-sink (button 0 200 60 30 "+"))
+
+    (def: vanille-iceL-sink (message 135 180 100 20 "Vanille Ice: € 2.2"))
+    (def: vanille-iceB-source vanille-iceB-sink (button 135 200 60 30 "+"))
+
+ 
+  
+    ;SNACKS
+    (def: snackL-sink (message 0 240  100 20 "SNACKS"))
+    (def: chicken-nuggetsL-sink (message 0 260 100 20 "Chicken Nuggets: € 4.7"))
+    (def: chicken-nuggetsB-source chicken-nuggetsB-sink (button 0 280 60 30 "+"))
+    
+    (def: chicken-wingsL-sink (message 135 260 100 20 "Chicken Wings: € 4.7"))
+    (def: chicken-wingsB-source chicken-wingsB-sink (button 135 280 60 30 "+"))
+  
+    (def: cheese-croquettesL-sink  (message 270 260 150 20 "Cheese croquettes: 4.7"))
+    (def: cheese-croquettesB-source cheese-croquettesB-sink (button 270 280 60 30 "+"))
+  
+  
+    ;FRIES
+    (def: friesL-sink (message 0 320  100 20 "FRIES"))
+    (def: fries-smallL-sink (message 0 340 100 20 "Fries Small: € 3.5"))
+    (def: fries-smallB-source fries-smallB-sink (button 0 360 60 30 "+"))
+    (def: fries-bigL-sink (message 135 340 100 20 "Fries Big: € 4.7"))
+    (def: fries-bigB-source fries-bigB-sink (button 135 360 60 30 "+"))
+    (def: frit-fondueL-sink  (message 270 340 150 20 "Cheese croquettes: 4.2"))
+    (def: frit-fondueB-source frit-fondueB-sink (button 270 360 60 30 "+"))
+    ;SALADE
+    (def: saladeL-sink (message 0 400  100 20 "SALADES"))
+    (def: salade-smallL-sink (message 0 420 100 20 "Salade Small: € 3.5"))
+    (def: salade-smallB-source salade-smallB-sink (button 0 440 60 30 "+"))
+    (def: salade-bigL-sink (message 135 420 100 20 "Salade Big: € 6.5"))
+    (def: salade-bigB-source salade-bigB-sink (button 135 440 60 30 "+"))
+    ;SAUS
+    (def: sausL-sink (message 0 480 100 20 "SAUS"))
+    (def: mayoL-sink (message 0 500 100 20 "Mayonnaise: € 3.5"))
+    (def: mayoB-source mayoB-sink (button 0 520 60 30 "+"))
+    (def: ketchupL-sink (message 135 500 100 20 "Ketchup: € 6.5"))
+    (def: ketchupB-source ketchupB-sink (button 135 520 60 30 "+"))
+    ;ALLERGIC
+    (def: allergicL-sink (message 0 560 100 20 "ALLERGICS"))
+    (def: milkC-source milkC-sink (check-box 0 580 40 50 "Milk"))
+    (def: eggsC-source eggsC-sink (check-box 55 580 40 50 "Eggs"))
+ 
+  
+    ;ORDER
+    (def: orderLB-source orderLB-sink (list-box 0 650 700 200 "ORDER: " (list)))
+    (def: removeB-source removeB-sink (button 0 855 50 30 "Remove"))
+  
+    ;TOTAL
+    (def: totalL-sink (message 0 895 50 20 "Total: "))
+    (def: sum-totalL-sink (message 50 915 50 20 "0"))
+    (def: payerB-source payerB-sink (button 0 935 60 30 "Payer"))
+    (def: abortB-source abortB-sink (button 65 935 60 30 "Abort")))
+  (def: bs bss (button  0 0  0 0 "jfdk"))
+  )
+ (react:
+
+  (reactor: select-remove-itemR
+            (in: list-box)
+            (out: list-box))
+
+  (deploy: select-remove-itemR with: (fact: client-1 orderLB-source) as: selected-for-remove-1)
+  (update: current-selected-item-1 with: selected-for-remove-1)
+
+  (deploy: select-remove-itemR with: (fact: client-2 orderLB-source) as: selected-for-remove-2)
+  (update: current-selected-item-2 with: selected-for-remove-2)
+  
+
+  (reactor: removeR
+            (in: button #:model selected-index order)
+            (def: index (map: button (lambda: button selected-index)))
+            (def: index-e (filter: index (lambda: index index)))
+            (def: itemID (map: index-e (lambda: index-e (list-ref order index-e)))) 
+            (def: nothing (map: index-e (lambda: index-e ?)))
+            (out: itemID nothing nothing nothing))
+
+    
+  (deploy:  removeR with: (fact: client-1 removeB-source) current-selected-item-1 order as: remove-1)
+  (remove-collect1: remove-1 as: fries)
+  (remove-collect1: remove-1 as: burger)
+  (remove-collect1: remove-1 as: saus)
+  (remove-collect1: remove-1 as: ice)
+  (remove-collect1: remove-1 as: salade)
+  (remove-collect1: remove-1 as: drink)
+  (remove-collect1: remove-1 as: snack)
+  (remove-collect1: remove-1 as: menu)
+
+
+  (deploy:  removeR with: (fact: client-2 removeB-source) current-selected-item-2 order as: remove-2)
+  (remove-collect1: remove-2 as: fries)
+  (remove-collect1: remove-2 as: burger)
+  (remove-collect1: remove-2 as: saus)
+  (remove-collect1: remove-2 as: ice)
+  (remove-collect1: remove-2 as: salade)
+  (remove-collect1: remove-2 as: drink)
+  (remove-collect1: remove-2 as: snack)
+  (remove-collect1: remove-2 as: menu)
+  
+   
+              
+ 
+
+  
+  (reactor: allergicR
+            (in: check-box)
+            (def: value (map: check-box (lambda: check-box (not check-box))))
+            (out: value))
+
+    (deploy: allergicR with: (fact: client-1 milkC-source) as: milk-allergic-1)
+    (deploy: allergicR with: (fact: client-1 eggsC-source) as: eggs-allergic-1)
+    (update: (fact: client-1 baconB-sink enable) with: eggs-allergic-1)
+    (update: (fact: client-1 chickenB-sink enable) with: eggs-allergic-1)
+    (update: (fact: client-1 vanille-iceB-sink enable) with: milk-allergic-1)
+    (update: (fact: client-1 chocolate-iceB-sink enable) with: milk-allergic-1)
+
+    (deploy: allergicR with: (fact: client-2 milkC-source) as: milk-allergic-2)
+    (deploy: allergicR with: (fact: client-2 eggsC-source) as: eggs-allergic-2)
+    (update: (fact: client-2 baconB-sink enable) with: eggs-allergic-2)
+    (update: (fact: client-2 chickenB-sink enable) with: eggs-allergic-2)
+    (update: (fact: client-2 vanille-iceB-sink enable) with: milk-allergic-2)
+    (update: (fact: client-2 chocolate-iceB-sink enable) with: milk-allergic-2)
+    
+
+    (reactor: add-ID-itemR
+              (in: button #:model  itemID customerID price)
+              (def: new-itemID (map: button (lambda: button itemID)))
+              (def: new-customerID (map: button (lambda: button customerID)))
+              ;  (def: new-type (map: button type))
+              (def: new-price (map: button (lambda: button price)))
+              (out: new-itemID new-customerID button new-price))
+    
+    (reactor: add-order-listR 
+              (in: button-event #:model current-item-id order)
+              (def: new-item-id (map: button-event (lambda: button-event (+ current-item-id 1))))
+              (def: new-order (map: new-item-id (lambda: new-item-id (append order (list new-item-id)))))
+              (def: type-label (map: button-event (lambda: button-event (symbol->string button-event))))
+              (out: type-label new-order new-item-id))
+    
+    (reactor: add-total-sumR
+              (in: button-event #:model price total)
+              (def: new-total (map: button-event (lambda: button-event (+ price total))))
+              (def: label-new-total (map: new-total (lambda: new-total (number->string new-total))))
+              (out: new-total label-new-total))
+    
+
+    ;FANTA
+    
+    (deploy: add-total-sumR with: (fact: client-1 fantaB-source) pFanta total as: fanta-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: fanta-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 fantaB-source) currentItemID-1 order-1 as: fanta-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: fanta-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 fantaB-source) currentItemID-1 customerID-1 pFanta as: fanta-id-1)
+    (add-collect1: fanta-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: fanta-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 fantaB-source) pFanta total as: fanta-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: fanta-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 fantaB-source) currentItemID-2 order-2 as: fanta-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: fanta-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 fantaB-source) currentItemID-2 customerID-2 pFanta as: fanta-id-2)
+    (add-collect1: fanta-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: fanta-id-2)
+
+
+    ;COLA
+
+    (deploy: add-total-sumR with: (fact: client-1 colaB-source) pCola total as: cola-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: cola-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 colaB-source) currentItemID-1 order-1 as: cola-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: cola-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 colaB-source) currentItemID-1 customerID-1 pcola as: cola-id-1)
+    (add-collect1: cola-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: cola-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 colaB-source) pCola total as: cola-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: cola-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 colaB-source) currentItemID-2 order-2 as: cola-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: cola-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 colaB-source) currentItemID-2 customerID-2 pcola as: cola-id-2)
+    (add-collect1: cola-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: cola-id-2)
+
+    ;ICE TEA
+
+    (deploy: add-total-sumR with: (fact: client-1 ice-teaB-source) pIce-tea total as: ice-tea-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: ice-tea-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 ice-teaB-source) currentItemID-1 order-1 as: ice-tea-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: ice-tea-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 ice-teaB-source) currentItemID-1 customerID-1 pice-tea as: ice-tea-id-1)
+    (add-collect1: ice-tea-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: ice-tea-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 ice-teaB-source) pIce-tea total as: ice-tea-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: ice-tea-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 ice-teaB-source) currentItemID-2 order-2 as: ice-tea-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: ice-tea-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 ice-teaB-source) currentItemID-2 customerID-2 pice-tea as: ice-tea-id-2)
+    (add-collect1: ice-tea-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: ice-tea-id-2)
+
+    ;ORANGE JUICE
+
+    (deploy: add-total-sumR with: (fact: client-1 orange-juiceB-source) pOrange-juice total as: orange-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: orange-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 orange-juiceB-source) currentItemID-1 order-1 as: orange-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: orange-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 orange-juiceB-source) currentItemID-1 customerID-1 pOrange-juice as: orange-id-1)
+    (add-collect1: orange-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: orange-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 orange-juiceB-source) pOrange-juice total as: orange-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: orange-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 orange-juiceB-source) currentItemID-2 order-2 as: orange-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: orange-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 orange-juiceB-source) currentItemID-2 customerID-2 pOrange-juice as: orange-id-2)
+    (add-collect1: orange-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: orange-id-2)
+
+    ;BIG MAC
+    
+    (deploy: add-total-sumR with: (fact: client-1 big-macB-source) pBig-mac total as: big-mac-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: big-mac-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 big-macB-source) currentItemID-1 order-1 as: big-mac-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: big-mac-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 big-macB-source) currentItemID-1 customerID-1 pBig-mac as: big-mac-id-1)
+    (add-collect1: big-mac-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: big-mac-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 big-macB-source) pBig-mac total as: big-mac-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: big-mac-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 big-macB-source) currentItemID-2 order-2 as: big-mac-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: big-mac-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 big-macB-source) currentItemID-2 customerID-2 pBig-mac as: big-mac-id-2)
+    (add-collect1: big-mac-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: big-mac-id-2)
+
+    ;VEGGIE
+    
+    (deploy: add-total-sumR with: (fact: client-1 veggieB-source) pVeggie total as: veggie-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: veggie-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 veggieB-source) currentItemID-1 order-1 as: veggie-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: veggie-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 veggieB-source) currentItemID-1 customerID-1 pVeggie as: veggie-id-1)
+    (add-collect1: veggie-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: veggie-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 veggieB-source) pVeggie total as: veggie-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: veggie-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 veggieB-source) currentItemID-2 order-2 as: veggie-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: veggie-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 veggieB-source) currentItemID-2 customerID-2 pVeggie as: veggie-id-2)
+    (add-collect1: veggie-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: veggie-id-2)
+
+    ;CHICKEN
+
+    (deploy: add-total-sumR with: (fact: client-1 chickenB-source) pChicken total as: chicken-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: chicken-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 chickenB-source) currentItemID-1 order-1 as: chicken-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: chicken-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 chickenB-source) currentItemID-1 customerID-1 pChicken as: chicken-id-1)
+    (add-collect1: chicken-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: chicken-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 chickenB-source) pChicken total as: chicken-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: chicken-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 chickenB-source) currentItemID-2 order-2 as: chicken-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: chicken-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 chickenB-source) currentItemID-2 customerID-2 pChicken as: chicken-id-2)
+    (add-collect1: chicken-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: chicken-id-2)
+    
+    ;BACON
+
+     (deploy: add-total-sumR with: (fact: client-1 baconB-source) pBacon total as: bacon-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: bacon-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 baconB-source) currentItemID-1 order-1 as: bacon-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: bacon-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 baconB-source) currentItemID-1 customerID-1 pBacon as: bacon-id-1)
+    (add-collect1: bacon-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: bacon-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 baconB-source) pBacon total as: bacon-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: bacon-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 baconB-source) currentItemID-2 order-2 as: bacon-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: bacon-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 baconB-source) currentItemID-2 customerID-2 pBacon as: bacon-id-2)
+    (add-collect1: bacon-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: bacon-id-2)
+
+    ;CHOCOlATE-ICE
+
+    (deploy: add-total-sumR with: (fact: client-1 chocolate-iceB-source) pChocolate-ice total as: chocolate-ice-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: chocolate-ice-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 chocolate-iceB-source) currentItemID-1 order-1 as: chocolate-ice-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: chocolate-ice-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 chocolate-iceB-source) currentItemID-1 customerID-1 pChocolate-ice as: chocolate-ice-id-1)
+    (add-collect1: chocolate-ice-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: chocolate-ice-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 chocolate-iceB-source) pChocolate-ice total as: chocolate-ice-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: chocolate-ice-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 chocolate-iceB-source) currentItemID-2 order-2 as: chocolate-ice-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: chocolate-ice-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 chocolate-iceB-source) currentItemID-2 customerID-2 pChocolate-ice as: chocolate-ice-id-2)
+    (add-collect1: chocolate-ice-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: chocolate-ice-id-2)
+
+    ;VANILLE-ICE
+
+    (deploy: add-total-sumR with: (fact: client-1 vanille-iceB-source) pVanille-ice total as: vanille-ice-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: vanille-ice-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 vanille-iceB-source) currentItemID-1 order-1 as: vanille-ice-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: vanille-ice-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 vanille-iceB-source) currentItemID-1 customerID-1 pVanille-ice as: vanille-ice-id-1)
+    (add-collect1: vanille-ice-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: vanille-ice-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 vanille-iceB-source) pVanille-ice total as: vanille-ice-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: vanille-ice-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 vanille-iceB-source) currentItemID-2 order-2 as: vanille-ice-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: vanille-ice-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 vanille-iceB-source) currentItemID-2 customerID-2 pVanille-ice as: vanille-ice-id-2)
+    (add-collect1: vanille-ice-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: vanille-ice-id-2)
+
+    ;Chicken-nuggets
+
+    (deploy: add-total-sumR with: (fact: client-1 chicken-nuggetsB-source) pChicken-nuggets total as: chicken-nuggets-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: chicken-nuggets-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 chicken-nuggetsB-source) currentItemID-1 order-1 as: chicken-nuggets-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: chicken-nuggets-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 chicken-nuggetsB-source) currentItemID-1 customerID-1 pChicken-nuggets as: chicken-nuggets-id-1)
+    (add-collect1: chicken-nuggets-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: chicken-nuggets-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 chicken-nuggetsB-source) pChicken-nuggets total as: chicken-nuggets-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: chicken-nuggets-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 chicken-nuggetsB-source) currentItemID-2 order-2 as: chicken-nuggets-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: chicken-nuggets-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 chicken-nuggetsB-source) currentItemID-2 customerID-2 pChicken-nuggets as: chicken-nuggets-id-2)
+    (add-collect1: chicken-nuggets-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: chicken-nuggets-id-2)
+
+    ;Chicken-wings
+
+    (deploy: add-total-sumR with: (fact: client-1 chicken-wingsB-source) pChicken-wings total as: chicken-wings-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: chicken-wings-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 chicken-wingsB-source) currentItemID-1 order-1 as: chicken-wings-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: chicken-wings-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 chicken-wingsB-source) currentItemID-1 customerID-1 pChicken-wings as: chicken-wings-id-1)
+    (add-collect1: chicken-wings-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: chicken-wings-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 chicken-wingsB-source) pChicken-wings total as: chicken-wings-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: chicken-wings-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 chicken-wingsB-source) currentItemID-2 order-2 as: chicken-wings-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: chicken-wings-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 chicken-wingsB-source) currentItemID-2 customerID-2 pChicken-wings as: chicken-wings-id-2)
+    (add-collect1: chicken-wings-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: chicken-wings-id-2)
+
+    ;cheese-corquettes
+
+    (deploy: add-total-sumR with: (fact: client-1 cheese-croquettesB-source) pCheese-croquettes total as: cheese-croquettes-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: cheese-croquettes-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 cheese-croquettesB-source) currentItemID-1 order-1 as: cheese-croquettes-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: cheese-croquettes-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 cheese-croquettesB-source) currentItemID-1 customerID-1 pCheese-croquettes as: cheese-croquettes-id-1)
+    (add-collect1: cheese-croquettes-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: cheese-croquettes-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 cheese-croquettesB-source) pCheese-croquettes total as: cheese-croquettes-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: cheese-croquettes-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 cheese-croquettesB-source) currentItemID-2 order-2 as: cheese-croquettes-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: cheese-croquettes-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 cheese-croquettesB-source) currentItemID-2 customerID-2 pCheese-croquettes as: cheese-croquettes-id-2)
+    (add-collect1: cheese-croquettes-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: cheese-croquettes-id-2)
+
+    ;fries-small
+
+    (deploy: add-total-sumR with: (fact: client-1 fries-smallB-source) pFries-small total as: fries-small-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: fries-small-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 fries-smallB-source) currentItemID-1 order-1 as: fries-small-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: fries-small-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 fries-smallB-source) currentItemID-1 customerID-1 pFries-small as: fries-small-id-1)
+    (add-collect1: fries-small-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: fries-small-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 fries-smallB-source) pFries-small total as: fries-small-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: fries-small-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 fries-smallB-source) currentItemID-2 order-2 as: fries-small-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: fries-small-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 fries-smallB-source) currentItemID-2 customerID-2 pFries-small as: fries-small-id-2)
+    (add-collect1: fries-small-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: fries-small-id-2)
+
+    ;salade-small
+
+     (deploy: add-total-sumR with: (fact: client-1 salade-smallB-source) pSalade-small total as: salade-small-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: salade-small-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 salade-smallB-source) currentItemID-1 order-1 as: salade-small-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: salade-small-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 salade-smallB-source) currentItemID-1 customerID-1 pSalade-small as: salade-small-id-1)
+    (add-collect1: salade-small-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: salade-small-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 salade-smallB-source) pSalade-small total as: salade-small-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: salade-small-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 salade-smallB-source) currentItemID-2 order-2 as: salade-small-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: salade-small-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 salade-smallB-source) currentItemID-2 customerID-2 pSalade-small as: salade-small-id-2)
+    (add-collect1: salade-small-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: salade-small-id-2)
+
+    ;salade-big
+
+     (deploy: add-total-sumR with: (fact: client-1 salade-bigB-source) pSalade-big total as: salade-big-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: salade-big-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 salade-bigB-source) currentItemID-1 order-1 as: salade-big-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: salade-big-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 salade-bigB-source) currentItemID-1 customerID-1 pSalade-big as: salade-big-id-1)
+    (add-collect1: salade-big-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: salade-big-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 salade-bigB-source) pSalade-big total as: salade-big-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: salade-big-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 salade-bigB-source) currentItemID-2 order-2 as: salade-big-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: salade-big-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 salade-bigB-source) currentItemID-2 customerID-2 pSalade-big as: salade-big-id-2)
+    (add-collect1: salade-big-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: salade-big-id-2)
+
+    ;Frit-fondue
+
+    (deploy: add-total-sumR with: (fact: client-1 frit-fondueB-source) pFrit-fondue total as: frit-fondue-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: frit-fondue-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 frit-fondueB-source) currentItemID-1 order-1 as: frit-fondue-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: frit-fondue-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 frit-fondueB-source) currentItemID-1 customerID-1 pFrit-fondue as: frit-fondue-id-1)
+    (add-collect1: frit-fondue-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: frit-fondue-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 frit-fondueB-source) pFrit-fondue total as: frit-fondue-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: frit-fondue-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 frit-fondueB-source) currentItemID-2 order-2 as: frit-fondue-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: frit-fondue-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 frit-fondueB-source) currentItemID-2 customerID-2 pFrit-fondue as: frit-fondue-id-2)
+    (add-collect1: frit-fondue-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: frit-fondue-id-2)
+
+    ;Mayo
+
+    (deploy: add-total-sumR with: (fact: client-1 mayoB-source) pMayo total as: mayo-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: mayo-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 mayoB-source) currentItemID-1 order-1 as: mayo-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: mayo-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 mayoB-source) currentItemID-1 customerID-1 pMayo as: mayo-id-1)
+    (add-collect1: mayo-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: mayo-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 mayoB-source) pMayo total as: mayo-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: mayo-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 mayoB-source) currentItemID-2 order-2 as: mayo-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: mayo-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 mayoB-source) currentItemID-2 customerID-2 pMayo as: mayo-id-2)
+    (add-collect1: mayo-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: mayo-id-2)
+
+    ;Ketchup
+
+    (deploy: add-total-sumR with: (fact: client-1 ketchupB-source) pKetchup total as: ketchup-total-1)
+    (update: total-1 (fact: client-1 sum-totalL-sink change-value) with: ketchup-total-1 )
+    (deploy: add-order-listR with: (fact: client-1 ketchupB-source) currentItemID-1 order-1 as: ketchup-order-list-1)
+    (update: (fact: client-1 orderLB-sink add) order-1 currentItemID-1 with: ketchup-order-list-1)
+    (deploy: add-ID-itemR with: (fact: client-1 ketchupB-source) currentItemID-1 customerID-1 pKetchup as: ketchup-id-1)
+    (add-collect1: ketchup-id-1 as: drink for: 180)
+    (update: currentItemID-1 nothing nothing nothing with: ketchup-id-1)
+
+    (deploy: add-total-sumR with: (fact: client-2 ketchupB-source) pKetchup total as: ketchup-total-2)
+    (update: total-2 (fact: client-2 sum-totalL-sink change-value) with: ketchup-total-2 )
+    (deploy: add-order-listR with: (fact: client-2 ketchupB-source) currentItemID-2 order-2 as: ketchup-order-list-2)
+    (update: (fact: client-2 orderLB-sink add) order-2 currentItemID-2 with: ketchup-order-list-2)
+    (deploy: add-ID-itemR with: (fact: client-2 ketchupB-source) currentItemID-2 customerID-2 pKetchup as: ketchup-id-2)
+    (add-collect1: ketchup-id-2 as: drink for: 180)
+    (update: currentItemID-2 nothing nothing nothing with: ketchup-id-2)
+
+    
+    
+    (reactor: update-state-addR
+              (in: itemIDs customerID info price #:model  order  total)
+              (def: new-total (map: price (lambda: price (+ total price)))) 
+              (def: label (map: info (lambda: info (symbol->string info))))
+              (def: new-order (map: itemIDs (lambda: itemIDs (append order (list itemIDs)))))
+              (out: label new-total new-order ))
+    
+
+  
+ 
+    (reactor: update-state-removeR 
+              (in: itemID customerID type price #:model order total)
+              (def: index (map: itemID (lambda: itemID (index-of  order itemID))))
+              (def: new-order (map: index (lambda: order (remove (list-ref order index)
+                                                                 order))))
+              (def: selected (map: itemID (lambda: itemID #f)))
+              (def: new-total (map: price (lambda: price (- total price))))
+              (def: string-new-total (map: new-total (lambda: new-total (number->string new-total))))
+              (out: new-order selected index new-total string-new-total))
+    
+  (reactor: nothing-reactor
+            (in: i x y z)
+            (out: i x y z))
+            
+  (forall: (fries (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-1))
+           (add-deploy: nothing-reactor as: nothing1)
+           (remove-deploy: update-state-removeR order-1 total-1 as: remove-fries-1))
+  
+  (forall: (snack (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-1))
+           (add-deploy: nothing-reactor as: nothing2)
+           (remove-deploy: update-state-removeR order-1 total-1 as: remove-snack-1))
+  
+  (forall: (ice (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-1))
+           (add-deploy: nothing-reactor as: nothing3)
+           (remove-deploy: update-state-removeR order-1 total-1 as: remove-ice-1))
+ 
+  
+  (forall: (burger (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-1))
+           (add-deploy: nothing-reactor as: nothing4)
+           (remove-deploy: update-state-removeR order-1 total-1 as: remove-burger-1))
+ 
+  
+  (forall: (drink (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-1))
+           (add-deploy: nothing-reactor as: nothing5)
+           (remove-deploy: update-state-removeR order-1 total-1 as: remove-drink-1))
+  
+  (forall: (salade (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-1))
+           (add-deploy: nothing-reactor as: nothing6)
+           (remove-deploy: update-state-removeR order-1 total-1 as: remove-salade-1))
+  
+  (forall: (saus (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-1))
+           (add-deploy: nothing-reactor as: nothing7)
+           (remove-deploy: update-state-removeR order-1 total-1 as: remove-saus-1))
+
+
+  (update: order-1 current-selected-item-1 (fact: client-1 orderLB-sink remove) total-1 (fact: client-1 sum-totalL-sink change-value) with: remove-drink-1)
+  (update: order-1 current-selected-item-1 (fact: client-1 orderLB-sink remove) total-1 (fact: client-1 sum-totalL-sink change-value) with: remove-burger-1)
+  (update: order-1 current-selected-item-1 (fact: client-1 orderLB-sink remove) total-1 (fact: client-1 sum-totalL-sink change-value)  with: remove-fries-1)
+  (update: order-1 current-selected-item-1 (fact: client-1 orderLB-sink remove) total-1 (fact: client-1 sum-totalL-sink change-value)  with: remove-saus-1)
+  (update: order-1 current-selected-item-1 (fact: client-1 orderLB-sink remove) total-1 (fact: client-1 sum-totalL-sink change-value)  with: remove-salade-1)
+  (update: order-1 current-selected-item-1 (fact: client-1 orderLB-sink remove) total-1 (fact: client-1 sum-totalL-sink change-value)  with: remove-ice-1)
+  (update: order-1 current-selected-item-1 (fact: client-1 orderLB-sink remove) total-1 (fact: client-1 sum-totalL-sink change-value)  with: remove-snack-1)
+
+
+   (forall: (fries (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-2))
+           (add-deploy: nothing-reactor as: nothing2)
+           (remove-deploy: update-state-removeR order-2 total-2 as: remove-fries-2))
+  
+  (forall: (snack (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-2))
+           (add-deploy: nothing-reactor as: nothing2)
+           (remove-deploy: update-state-removeR order-2 total-2 as: remove-snack-2))
+  
+  (forall: (ice (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-2))
+           (add-deploy: nothing-reactor as: nothing3)
+           (remove-deploy: update-state-removeR order-2 total-2 as: remove-ice-2))
+ 
+  
+  (forall: (burger (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-2))
+           (add-deploy: nothing-reactor as: nothing4)
+           (remove-deploy: update-state-removeR order-2 total-2 as: remove-burger-2))
+ 
+  
+  (forall: (drink (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-2))
+           (add-deploy: nothing-reactor as: nothing5)
+           (remove-deploy: update-state-removeR order-2 total-2 as: remove-drink-2))
+  
+  (forall: (salade (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-2))
+           (add-deploy: nothing-reactor as: nothing6)
+           (remove-deploy: update-state-removeR order-2 total-2 as: remove-salade-2))
+  
+  (forall: (saus (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-2))
+           (add-deploy: nothing-reactor as: nothing7)
+           (remove-deploy: update-state-removeR order-2 total-2 as: remove-saus-2))
+
+
+  (update: order-2 current-selected-item-2 (fact: client-2 orderLB-sink remove) total-2 (fact: client-2 sum-totalL-sink change-value) with: remove-drink-2)
+  (update: order-2 current-selected-item-2 (fact: client-2 orderLB-sink remove) total-2 (fact: client-2 sum-totalL-sink change-value) with: remove-burger-2)
+  (update: order-2 current-selected-item-2 (fact: client-2 orderLB-sink remove) total-2 (fact: client-2 sum-totalL-sink change-value)  with: remove-fries-2)
+  (update: order-2 current-selected-item-2 (fact: client-2 orderLB-sink remove) total-2 (fact: client-2 sum-totalL-sink change-value)  with: remove-saus-2)
+  (update: order-2 current-selected-item-2 (fact: client-2 orderLB-sink remove) total-2 (fact: client-2 sum-totalL-sink change-value)  with: remove-salade-2)
+  (update: order-2 current-selected-item-2 (fact: client-2 orderLB-sink remove) total-2 (fact: client-2 sum-totalL-sink change-value)  with: remove-ice-2)
+  (update: order-2 current-selected-item-2 (fact: client-2 orderLB-sink remove) total-2 (fact: client-2 sum-totalL-sink change-value)  with: remove-snack-2)
+  
+
+  (reactor: add-to-order-reactor
+            (in: itemIDs customerID type price #:model total order)
+            (def: label (map: type (lambda: type (symbol->string type))))
+            (def: new-total (map: price (lambda: price (+ total price))))
+            (def: new-order (map: itemIDs (lambda: itemIDs (append  order
+                                                  (list itemIDs)))))
+            (def: string-new-total (map: new-total (lambda: new-total (number->string new-total))))
+            (out: label new-total new-order string-new-total))
+            
+  (forall: (menu (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-1))
+           (add-deploy: add-to-order-reactor  order-1 total-1 as: add-menu-1)
+           (remove-deploy: update-state-removeR order-1 total-1 as: remove-menu-1))
+
+    (forall: (menu (?itemID ?customerID ?type ?price) (equal? ?customerID customerID-2))
+           (add-deploy: add-to-order-reactor  order-2 total-2 as: add-menu-2)
+           (remove-deploy: update-state-removeR order-2 total-2 as: remove-menu-2))
+
+  ;(forall:  (menu-promo (?itemIDs ?customerID ?info ?new-price) )
+  ;          (add-deploy: add-to-order-reactor order total as: add-menu-promo)
+  ;          (remove-deploy: update-state-removeR order total as: remove-menu-promo))
+
+  (update: (fact: client-1 orderLB-sink add) total-1 order-1 (fact: client-1 sum-totalL-sink change-value) with: add-menu-1)
+  (update: order-1 current-selected-item-1 (fact: client-1 orderLB-sink remove) total-1 (fact: client-1 sum-totalL-sink change-value) with: remove-menu-1)
+
+
+   (update: (fact: client-2 orderLB-sink add) total-2 order-2 (fact: client-2 sum-totalL-sink change-value) with: add-menu-2)
+  (update: order-2 current-selected-item-2 (fact: client-2 orderLB-sink remove) total-2 (fact: client-2 sum-totalL-sink change-value) with: remove-menu-2)
+ 
+  
+  (rule: menu-saus where:
+         (fries (?friesID ?customerID ?small ?friesPrice))
+         (saus (?sausID ?customerID ?type ?saus-price))
+         (salade (?itemIDSalade ?customerID ?small ?saladePrice) )
+         then: (add: (fact: menu
+                            (list ?friesID ?itemIDSalade ?sausID)
+                            ?customerID
+                            (sym menu-saus)
+                            (iff ?small 6.5 9.5)) for: -1))
+
+  (rule: menu-chicken-bacon where:
+         (salade (?itemIDSalade ?customerID ?small ?saladePrice) (equal? ?small #f))
+         (drink (?drinkIDDrink ?customerID ?drinkType ?drinkPrice))
+         (burger (?burgerID ?customerID ?burgerType ?burgerPrice) (or
+                                                                   (equal? (sym bacon) ?burgerType)
+                                                                   (equal? (sym chicken) ?burgerType)))
+         then: (add: (fact: menu
+                            (list ?itemIDFries ?itemIDDrink ?itemIDBurger)
+                            ?customerID
+                            (sym chicken-or-bacon-menu)
+                            (iff ?small (iff (equal? (sym bacon)
+                                                    ?burgerType)
+                                            11.4 13.4)
+                                 (iff (equal? (sym bacon)
+                                                    ?burgerType)
+                                            8.4 11.4))) for: -1))
+  
+  
+  (rule: menu-veggie where:
+         (fries (?itemIDFries ?customerID ?small ?friesPrice) (equal? #f ?small))
+         (drink (?itemIDDrink ?customerID ?typeDrink ?drink-price))
+         (burger (?itemIDBurger ?customerID ?typeBurger ?burger-price) (equal? (sym veggie)
+                                                                 ?typeBurger))
+         then: (add: (fact: menu
+                            (list ?itemIDFries ?itemIDDrink ?itemIDBurger)
+                            ?customerID
+                            (sym menu-veggie);(list ?customerID ?typeDrink ?typeBurger)
+                            10.5) for: -1))
+  
+  
+  
+  (rule: menu-big-mac where:
+         (fries (?itemIDFries ?customerID ?small ?friesPrice) )
+         (drink (?itemIDDrink ?customerID ?typeDrink ?drink-price))
+         (burger (?itemIDBurger ?customerID ?typeBurger ?burger-price) (equal? (sym big-mac)
+                                                                 ?typeBurger))
+         then: (add: (fact: menu
+                            (list ?itemIDFries ?itemIDDrink ?itemIDBurger)
+                            ?customerID
+                            (sym menu-big-mac);(list ?customerID ?typeDrink ?typeBurger)
+                            (iff ?small 11.5 12.5)) for: -1))
+
+
+  (rule: remove where:
+        (burger (?itemIDBurger ?customerID ?typeBurger ?burger-price) )                                                                 
+        (menu ((?itemIDFries ?itemIDDrink ?itemIDBurger ) ?customerID ?info ?price))
+         then: (remove: (fact: burger  ?itemIDBurger ?customerID ?typeBurger ?burger-price)))
+
+  (rule: remove where:
+        (drink (?itemIDDrink ?customerID ?typeDrink ?drinkprice))
+        (menu ((?itemIDFries ?itemIDDrink ?itemIDBurger) ?customerID ?info ?price))
+         then: (remove: (fact: drink  ?itemIDDrink ?customerID ?typeDrink ?drinkprice)))
+  
+
+  (rule: remove where:
+         (fries (?itemIDFries ?customerID ?small ?friesPrice) )
+         (menu ((?itemIDFries ?itemIDDrink ?itemIDBurger) ?customerID ?info ?price))
+         then: (remove: (fact: fries  ?itemIDFries ?customerID ?small ?friesPrice)))
+
+  (rule: remove where:
+         (salade (?itemIDSalade ?customerID ?small ?saladePrice) )
+         (menu ((?otherItemID1 ?itemIDSalade ?otherItemID2) ?customerID ?info ?price))
+         then: (remove: (fact: salade  ?itemIDSalade ?customerID ?small ?saladePrice)))
+
+  (rule: remove where:
+         (salade (?itemIDSalade ?customerID ?small ?saladePrice) )
+         (menu ((?itemIDSalade ?otherItemID1 ?otherItemID2) ?customerID ?info ?price))
+         then: (remove: (fact: salade  ?itemIDSalade ?customerID ?small ?saladePrice)))
+
+  (rule: remove where:
+         (sause (?itemIDSaus ?customerID ?small ?sausePrice) )
+         (menu ((?otherItemID1 ?otherItemID2 ?itemIDSaus) ?customerID ?info ?price))
+         then: (remove: (fact: saus  ?itemIDSaus ?customerID ?small ?sausPrice)))
+
+  
+  #|
+                            
+  
+
+  (reactor: session-reactor
+            (in: event #:model customerID inSession)
+            (def: e (filter: event (lambda: e inSession)))
+            (def: ID (map: e customerID))
+            (out: ID ID))
+;  (add: view-name id )
+  (deploy: session-reactor with: (fact: client-1 fantaB-source) customerID inSession-1 as: session-1)
+  (deploy: session-reactor with: cola-plus-e customerID inSession-1 as: session-2)
+  (deploy: session-reactor with: ice-tea-plus-e customerID inSession-1 as: session-3)
+  (deploy: session-reactor with: orange-juice-plus-e customerID as: session-4)
+  (deploy: session-reactor with: veggie-plus-e customerID as: session-5)
+  (deploy: session-reactor with: big-mac-plus-e customerID as: session-6)
+  (deploy: session-reactor with: chicken-plus-e customerID as: session-7)
+  (deploy: session-reactor with: bacon-plus-e customerID as: session-8)
+  (deploy: session-reactor with: chocolate-ice-plus-e customerID as: session-9)
+  (deploy: session-reactor with: vanille-ice-plus-e customerID as: session-10)
+  (deploy: session-reactor with: salade-big-plus-e customerID as: session-11)
+  (deploy: session-reactor with: salade-small-plus-e customerID as: session-12)
+  (deploy: session-reactor with: fries-small-plus-e customerID as: session-13)
+  (deploy: session-reactor with: fries-big-plus-e customerID as: session-14)
+  (deploy: session-reactor with: remove-event customerID as: session-15)
+  (deploy: session-reactor with:  order-list-box-e customerID as: session-16)
+  (add-collect1: session-1 as: session for: 30)
+  (add-collect1: session-2 as: session for: 30)
+  (add-collect1: session-3 as: session for: 30)
+  (add-collect1: session-4 as: session for: 30)
+  (add-collect1: session-5 as: session for: 30)
+  (add-collect1: session-6 as: session for: 30)
+  (add-collect1: session-7 as: session for: 30)
+  (add-collect1: session-8 as: session for: 30)
+  (add-collect1: session-9 as: session for: 30)
+  (add-collect1: session-10 as: session for: 30)
+  (add-collect1: session-11 as: session for: 30)
+  (add-collect1: session-12 as: session for: 30)
+  (add-collect1: session-13 as: session for: 30)
+  (add-collect1: session-14 as: session for: 30)
+  (add-collect1: session-15 as: session for: 30)
+  (add-collect1: session-16 as: session for: 30)
+  
+  (reactor: session-ended-reactor
+            (in: customerID)
+            (def: nothing (map: customerID ?))
+            (out: nothing customerID nothing nothing))
+
+  (reactor: nothing-1-reactor
+            (in: event)
+            (out: event))
+
+
+
+  
+  (forall: (session (?customerID))
+           (add-deploy: nothing-1-reactor as: nothing-1)
+           (remove-deploy: session-ended-reactor as: session-ended))
+
+  (reactor: reset-buttons-reactor
+            (in: ID)
+            (def: enable (map: ID #t))
+            (out: enable))
+
+  (reactor: reset-check-box-reactor
+            (in: ID)
+            (def: value (map: ID #f))
+            (out: value))
+  (forall: (session (?customerID))
+           (add-deploy: nothing-1-reactor as: nothing-1)
+           (remove-deploy: reset-buttons-reactor as: enable-after-session))
+
+  (forall: (session (?customerID))
+           (add-deploy: nothing-1-reactor as: nothing-1)
+           (remove-deploy: reset-check-box-reactor as: check-box-after-session))
+
+  (update: bacon-plus-en with: enable-after-session)
+  (update: chicken-plus-en with: enable-after-session)
+  (update: vanille-ice-plus-en with: enable-after-session)
+  (update: chocolate-ice-plus-en with: enable-after-session)
+
+  (update: milk-value with: check-box-after-session)
+ ; (update: nuts-value with: check-box-after-session)
+  (update: eggs-value with: check-box-after-session)
+
+  ;(add: (fact: session 1) for: 5)
+
+  (remove-collect1: session-ended as: drink)
+  (remove-collect1: session-ended as: fries)
+  (remove-collect1: session-ended as: burger)
+  (remove-collect1: session-ended as: snack)
+  (remove-collect1: session-ended as: ice)
+  (remove-collect1: session-ended as: salade)
+  (remove-collect1: session-ended as: saus)
+  (remove-collect1: session-ended as: menu)
+  (remove-collect1: session-ended as: menu-promo)
+  
+         
+  
+  (deploy: session-reactor with: payer-event customerID as: session-17)
+  (remove-collect1: session-17 as: session)
+  (deploy: session-reactor with: abort-event customerID as: session-18)
+  (remove-collect1: session-18 as: session)
+  
+ 
+  (reactor: update-customerID
+            (in: event #:model customerID)
+            (def: new-customerID (map: event (+ customerID 1)))      
+            (out: new-customerID))
+
+  (deploy: update-customerID with: abort-event customerID as: reset-abort)
+  (deploy: update-customerID with: payer-event customerID as: reset-payer)
+  (update: customerID with: reset-abort)
+  (update: customerID with: reset-payer)
+
+  (reactor: loop
+            (in: elem)
+            (out: elem))
+  (forall: (promo (?reduction))
+           (add-deploy: nothing-1-reactor as: nothing-2)
+           (remove-deploy: loop as: promo-wait))
+
+  (add-collect1: promo-wait as: promo-wait for: 10)
+
+  (forall: (promo-wait (?reduction))
+           (add-deploy: nothing-1-reactor as: nothing-2)
+           (remove-deploy: loop as: promo-start))
+  (add-collect1: promo-start as: promo for: 50)
+
+    (add: (fact: promo 0.5 ) for: 50)
+  
+
+  |#
+
+  ))
+  
+  
+  

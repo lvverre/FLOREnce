@@ -1,11 +1,10 @@
 #lang racket
 (require "primitives..rkt")
 (require  "environment.rkt" )
+(require "interpret-build.rkt")
 (require syntax/parse)
-(provide compile compile-multiple-in-one eval-reactor-body eval-rule-body rule-env)
-(struct if-exp (pred then else))
-(struct app-exp (op args))
-(struct var-exp (val))
+(provide compile  eval-reactor-body eval-rule-body rule-env eval-fact-body)
+
 
 
 (define native-env (make-hash
@@ -20,6 +19,7 @@
                                   (cons '>= prim-greater-equal-then?)
                                   (cons 'not prim-not)
                                   (cons 'and prim-and)
+                                  
                                   (cons 'true  #t)
                                   (cons 'false #f)
                                   (cons 'or prim-or))))
@@ -27,40 +27,63 @@
 
 
 (define reactor-env (make-hash
-                            (list (cons '+ prim-add)
-                                  (cons '- prim-sub)
-                                  (cons '* prim-mul)
-                                  (cons '/ prim-div)
-                                  (cons 'equal? prim-equal?)
-                                  (cons '> prim-greater-then?)
-                                  (cons '< prim-smaller-then?)
-                                  (cons '<= prim-smaller-equal-then?)
-                                  (cons '>= prim-greater-equal-then?)
-                                  (cons 'not prim-not)
-                                  (cons 'and prim-and)
-                                  (cons 'true  #t)
-                                  (cons 'false #f)
-                                  (cons 'number->string prim-number->string)
-                                  (cons 'string->number prim-string->number)
-                                  (cons 'or prim-or))))
+                            (list
+                             (cons 'current-time current-seconds)
+                             (cons 'car car)
+                             (cons '? '?)
+                             (cons 'cdr cdr)
+                             (cons 'list-ref list-ref)
+                             (cons 'remove remove)
+                             (cons 'index-of (lambda (x y) (displayln x) (displayln y) (displayln (index-of x y)) (index-of x y))) 
+                             (cons 'remove* remove*)
+                             (cons '+ prim-add)
+                             (cons '- prim-sub)
+                             (cons '* prim-mul)
+                             (cons '/ prim-div)
+                             (cons 'equal? prim-equal?)
+                             (cons '> prim-greater-then?)
+                             (cons '< prim-smaller-then?)
+                             (cons '<= prim-smaller-equal-then?)
+                             (cons '>= prim-greater-equal-then?)
+                             (cons 'not prim-not)
+                             (cons 'and prim-and)
+                             (cons 'true  #t)
+                             (cons 'false #f)
+                             (cons 'symbol->string symbol->string)
+                             (cons 'append append)
+                             (cons 'number->string prim-number->string)
+                             (cons 'string->number prim-string->number)
+                             (cons 'or prim-or)
+                             (cons 'list list))))
 
 (define rule-env (make-hash
-                            (list (cons '+ prim-add)
-                                  (cons '- prim-sub)
-                                  (cons '* prim-mul)
-                                  (cons '/ prim-div)
-                                  (cons 'equal? prim-equal?)
-                                  (cons '> prim-greater-then?)
-                                  (cons '< prim-smaller-then?)
-                                  (cons '<= prim-smaller-equal-then?)
-                                  (cons '>= prim-greater-equal-then?)
-                                  (cons 'not prim-not)
-                                  (cons 'and prim-and)
-                                  (cons 'true  #t)
-                                  (cons 'false #f)
-                                   (cons 'number->string prim-number->string)
-                                  (cons 'string->number prim-string->number)
-                                  (cons 'or prim-or))))
+                            (list
+                             (cons 'car car)
+                             (cons 'cdr cdr)
+                             (cons 'list-ref list-ref)
+                             (cons 'remove remove)
+                             (cons 'index-of index-of)
+                             (cons 'remove* remove*)
+                             (cons '+ prim-add)
+                             (cons '- prim-sub)
+                             (cons '* prim-mul)
+                             (cons '/ prim-div)
+                             (cons 'equal? prim-equal?)
+                             (cons '> prim-greater-then?)
+                             (cons '< prim-smaller-then?)
+                             (cons '<= prim-smaller-equal-then?)
+                             (cons '>= prim-greater-equal-then?)
+                             (cons 'not prim-not)
+                             (cons 'and prim-and)
+                             (cons 'true  #t)
+                             (cons 'false #f)
+                             (cons 'symbol->string symbol->string)
+                             (cons 'append append)
+                             (cons 'string-append string-append)
+                             (cons 'number->string prim-number->string)
+                             (cons 'string->number prim-string->number)
+                             (cons 'or prim-or)
+                             (cons 'list list))))
 
 (define (compile stx )
   (define (loop stx)
@@ -90,7 +113,7 @@
 
 
 
-(define (compile-multiple-in-one exprs )
+#|(define (compile-multiple-in-one exprs )
   (let ((result (let loop
                   ((exprs exprs))
                   (cond ((null? exprs) true)
@@ -99,30 +122,43 @@
                         (else (app-exp prim-and
                                        (cons (compile (car exprs) )
                                              (loop (cdr exprs)))))))))
-    result))
+    result))|#
 
 
 (define (eval expr env)
   (define (eval-loop expr)
+   
     (match expr
+      [(and-exp args)
+       (andmap (lambda (exp) (eval-loop exp)) args)]
+      [(or-exp args)
+       (ormap (lambda (exp) (eval-loop exp)) args)]
       [(if-exp pred then else)
        (if (eval-loop pred)
            (eval-loop then)
            (eval-loop else))]
       [(app-exp op args)
-       (let ((operator (eval-loop op))
+       (let ((operator (if (var-exp? op)(eval-loop op) op))
              (arguments (map eval-loop args)))
+         (displayln operator)
+         (displayln arguments)
          (apply operator arguments))]
-      [(var-exp var)
+      [
+       (var-exp var)
+     
        (lookup-var-error var env)]
-      [(const val) val]))
-
+      [(const-exp val) val]))
+  
+  
   (eval-loop expr))
 
 
 (define (eval-reactor-body expr local-env)
   (eval expr (make-env local-env reactor-env)))
 
-(define (eval-rule-body expr local-env)
-  (eval expr (make-env local-env rule-env)))
+(define (eval-rule-body expr local-env model-env)
+  (eval expr (make-env local-env model-env rule-env)))
+
+(define (eval-fact-body expr local-env model-env)
+  (eval expr (make-env local-env model-env rule-env)))
             

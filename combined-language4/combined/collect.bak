@@ -94,11 +94,15 @@
             (error (format (error "Wrong type argument for collect* expected symbol given ~a" fact-name))))))
         
   
-(define (collect* logic-connector-names fact-name size collector )
- 
+(define (collect* logic-connector-names logic-connector-places fact-name size collector )
+  (displayln "collect")
       (let* (
-             (logic-connectors (map (lambda (var ) (lookup-all-local-var-error var global-env))
-                                    logic-connector-names )))
+             (logic-connectors (map (lambda (var place)
+                                     
+                                         
+                                          (lookup-local-var-error var place global-env))
+                                    logic-connector-names
+                                    logic-connector-places)))
         (check-argument-type logic-connectors fact-name)
         (let ((collection-size (calculate-collection-size logic-connectors)))
          
@@ -107,20 +111,42 @@
               (register-deployedR-to-collector! (car logic-connectors) collector)
               (register-events-to-collector! logic-connectors collector)))))
           
-      
 
-(define (add-collect* logic-connector-names fact-name time-interval size )
+
+(begin-for-syntax 
+  (define-syntax-class input
+    (pattern ((~literal factt:) window:id input:id)
+             #:attr place #''window
+              #:attr var #''input)
+    
+    (pattern input:id
+             #:attr place  #''unknown
+             #:attr var #''input))
+
+  (define-syntax-class first-input
+    (pattern ((~literal factt:) window:id input:id)
+             #:attr place #''window
+              #:attr var #''input)
+    
+    (pattern input:id
+             #:attr place  #''react
+             #:attr var #''input))) 
+
+(define (add-collect* logic-connector-names logic-connector-places fact-name time-interval size )
 
   (if (number? time-interval)
-      (collect* logic-connector-names 
+      (collect* logic-connector-names
+                logic-connector-places
                 fact-name
                 size
                 (add-fact-collector 0 -1 -1 -1 time-interval)
                 )
       (error (format "Wrong type argument for add-collect* expected number given ~a" time-interval))))
 
-(define (remove-collect* logic-connector-names   fact-name size )
-  (collect* logic-connector-names fact-name
+(define (remove-collect*  logic-connector-names
+                logic-connector-places   fact-name size )
+  (collect*  logic-connector-names
+                logic-connector-places fact-name
             size (remove-fact-collector 0 -1 -1 -1 )
             ))
     
@@ -128,41 +154,41 @@
 
 (define-syntax (add-collect1: stx)
   (syntax-parse stx
-    [((~literal add-collect1:) logic-connector-names:id ... (~literal as:) fact-name:id (~literal for:) time-interval:number)
-     #'(add-collect* '(logic-connector-names ...) 'fact-name time-interval  1 )]))
+    [((~literal add-collect1:) first-logic-connector:first-input logic-connector-identifiers:input ... (~literal as:) fact-name:id (~literal for:) time-interval:number)
+     #'(add-collect* (list first-logic-connector.var logic-connector-identifiers.var ...) (list first-logic-connector.place logic-connector-identifiers.place ...) 'fact-name time-interval  1 )]))
 
 (define-syntax (add-collect2: stx)
   (syntax-parse stx
-    [((~literal add-collect2:) logic-connector-names:id ... (~literal as:) fact-name:id (~literal for:) time-interval:number)
-     #'(add-collect* '(logic-connector-names ...) 'fact-name time-interval  2 )]))
+    [((~literal add-collect2:) first-logic-connector:first-input  logic-connector-identifiers:input ... (~literal as:) fact-name:id (~literal for:) time-interval:number)
+     #'(add-collect*  (list first-logic-connector.var  logic-connector-identifiers.var ...) (list first-logic-connector.place logic-connector-identifiers.place ...) 'fact-name time-interval  2 )]))
 
 (define-syntax (add-collect3: stx)
   (syntax-parse stx
-    [((~literal add-collect3:) logic-connector-names:id ... (~literal as:) fact-name:id (~literal for:) time-interval:number)
-     #'(add-collect* '(logic-connector-names ...) 'fact-name time-interval  3 )]))
+    [((~literal add-collect3:) first-logic-connector:first-input logic-connector-identifiers:input ... (~literal as:) fact-name:id (~literal for:) time-interval:number)
+     #'(add-collect*  (list first-logic-connector.var  logic-connector-identifiers.var ...) (list first-logic-connector.place logic-connector-identifiers.place ...) 'fact-name time-interval  3 )]))
 (define-syntax (add-collect4: stx)
   (syntax-parse stx
-    [((~literal add-collect4:) logic-connector-names:id ... (~literal as:) fact-name:id (~literal for:) time-interval:number)
-     #'(add-collect* '(logic-connector-names ...) 'fact-name time-interval  4 )]))
+    [((~literal add-collect4:) first-logic-connector:first-input logic-connector-identifiers:input ... (~literal as:) fact-name:id (~literal for:) time-interval:number)
+     #'(add-collect*  (list first-logic-connector.var logic-connector-identifiers.var ...) (list first-logic-connector.place logic-connector-identifiers.place ...)'fact-name time-interval  4 )]))
 
 
 
 (define-syntax (remove-collect1: stx)
   (syntax-parse stx
-    [((~literal remove-collect1:) logic-connector-names:id ...+ (~literal as:) fact-name:id )
-     #'(remove-collect* '(logic-connector-names ...) 'fact-name 1)]))
+    [((~literal remove-collect1:) first-logic-connector:first-input logic-connector-identifiers:input ... (~literal as:) fact-name:id )
+     #'(remove-collect*  (list first-logic-connector.var logic-connector-identifiers.var ...) (list first-logic-connector.place logic-connector-identifiers.place ...)'fact-name 1)]))
 
 (define-syntax (remove-collect2: stx)
   (syntax-parse stx
-    [((~literal remove-collect2:) logic-connector-names:id ...+ (~literal as:) fact-name:id )
-     #'(remove-collect* '(logic-connector-names ...) 'fact-name 2)]))
+    [((~literal remove-collect2:) first-logic-connector:first-input logic-connector-identifiers:input ... (~literal as:) fact-name:id )
+     #'(remove-collect*  (list first-logic-connector.var logic-connector-identifiers.var ...) (list first-logic-connector.place logic-connector-identifiers.place ...) 'fact-name 2)]))
 
 (define-syntax (remove-collect3: stx)
   (syntax-parse stx
-    [((~literal remove-collect3:) logic-connector-names:id ...+ (~literal as:) fact-name:id )
-     #'(remove-collect* '(logic-connector-names ...) 'fact-name 3)]))
+    [((~literal remove-collect3:) first-logic-connector:first-input logic-connector-identifiers:input ... (~literal as:) fact-name:id )
+     #'(remove-collect*  (list first-logic-connector.var logic-connector-identifiers.var ...) (list first-logic-connector.place logic-connector-identifiers.place ...) 'fact-name 3)]))
 
 (define-syntax (remove-collect4: stx)
   (syntax-parse stx
-    [((~literal remove-collect1:) logic-connector-names:id ...+ (~literal as:) fact-name:id )
-     #'(remove-collect* '(logic-connector-names ...) 'fact-name 4)]))
+    [((~literal remove-collect1:) first-logic-connector:first-input logic-connector-identifiers:input ... (~literal as:) fact-name:id )
+     #'(remove-collect*  (list first-logic-connector.var logic-connector-identifiers.var ...) (list first-logic-connector.place logic-connector-identifiers.place ...) 'fact-name 4)]))

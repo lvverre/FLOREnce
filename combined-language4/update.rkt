@@ -15,6 +15,11 @@
              #:attr place #''window
               #:attr var #''output
               #:attr fact-id #''factID)
+
+    (pattern ((~literal fact:) window:id factID:id)
+             #:attr place #''window
+             #:attr var  #''window
+             #:attr fact-id #''factID)
     
     (pattern output:id
              #:attr place  #''model
@@ -35,11 +40,11 @@
                                          (event-node? val))
                                    (error (format "Update cannot take argument that has the type of deployed-reactor reactor or input-node ~a" var)))
                                (cond ((sink-node? val)
-                                      (sink-fact-node fact-id (sink-node-widget val)))
-                                     ((model-var? val)
-                                      val)
+                                      (sink-fact-node fact-id (sink-node-widget val) ))
+                                     ((event-node? val)
+                                      (error (format "Update needs output stream or model-var ~a" val)))
                                      (else
-                                      (error (format "Update needs output stream or model-var ~a" val))))))
+                                      var ))))
                                    
                           (list args.place ...)
                           (list args.var ...)
@@ -47,8 +52,14 @@
         
        (when (not(deployedR? deployment))
          (error (format "Update expects deployed reactor as second argument")))
-         (when (not (= (vector-length (deployedR-outs deployment)) (length arguments)))
-           (error (format "Update: number of output of deployedReactor must be equal to update args")))
+         (when (not (= (vector-length (deployedR-outs deployment)) (foldl (lambda (arg acc) (+ (if (sink-fact-node? arg)
+                                                                                                  (send (sink-fact-node-widget arg) number-of-args (sink-fact-node-fact-id arg))
+                                                                                                  1)
+                                                                                               
+                                                                                              acc))
+                                                                          0
+                                                                        arguments)))
+           (error (format "Update: number of output of deployedReactor must be equal to update args ~a" arguments)))
        (set-functional-node-connectors! deployment
                                         (cons (external-connector arguments)
                                               (functional-node-connectors deployment))))]))

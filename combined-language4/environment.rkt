@@ -35,17 +35,29 @@
 (define get-node-env vector-ref)
 
 (define (add-to-env! var val env)
-  (hash-set! (vector-ref env 0) var val ))
+  (if (hash-ref  (vector-ref env 0) var (lambda () #t))
+      (hash-set! (vector-ref env 0) var val )
+      (error (format "~a already defined" var))))
 
-(define (add-to-local-env! var subenv val env)
-  (hash-set! (hash-ref env subenv) var val))
+
+(define (add-to-local-env! var subenv-name val env)
+  
+  (let ((subenv (hash-ref env subenv-name (lambda () (error "Window does not exist")))))
+   
+    (if (hash-ref  subenv var (lambda () #t))
+        (hash-set! subenv var val)
+        (error (format "~a ~a already defined"subenv-name var))))) 
+    
 
 (define (add-to-node-env! var  val env)
-  (hash-set! env var val))
+  (if (hash-ref  env var (lambda () #t))
+      (hash-set! env var val)
+      (error (format "~a already defined" var)))
+  )
 
 (define (update-local-env! var subenv val env)
   (let ((sub-environemnt (hash-ref env subenv)))
-    (if (local-env-contains? var sub-environemnt)
+    (if (local-env-contains? var subenv env)
         (hash-set! sub-environemnt var val)
         (error (format "Cannot update undefined variable ~a" var)))))
 
@@ -79,8 +91,8 @@
      
 
 (define (lookup-local-var-error var env-name local-env)
-  (displayln local-env)
-  (hash-ref (hash-ref local-env env-name) var (lambda ()(error (format "~a is not defined for this expression" var)))))
+ 
+  (hash-ref (hash-ref local-env env-name) var (lambda ()(error (format "~a is not defined for this expression L" var)))))
 
 (define (lookup-local-var-false var env-name local-env) 
   (hash-ref (hash-ref local-env env-name) var (lambda ()#f)))
@@ -88,14 +100,15 @@
 (define (lookup-all-local-var-error var  local-env)
   (let loop
     ((envs (hash-values local-env)))
-    (displayln "oop")
+   
     (if (null? envs)
         (error (format "~a is not defined for this expression" var))
         (hash-ref (car envs) var (lambda () (loop (cdr envs)))))))
     
  
 
-(define (lookup-node-var-error var  local-env) 
+(define (lookup-node-var-error var  local-env)
+  (displayln local-env)
   (hash-ref local-env var (lambda ()(error (format "~a is not defined for this expression" var)))))
 
 (define (get-sub-env env name)
@@ -107,10 +120,12 @@
 (define (lookup-var-error var env)
   (lookup-var var env (lambda ()
                         
-                        (error (format "~a is not defined for this expression" var)))))
+                        (error (format "~a is not defined for this expression hier" var)))))
 
 
 (define global-env (new-local-env))
 
 (define (create-new-subenv! env name)
   (hash-set! env name (new-local-env)))
+
+ 

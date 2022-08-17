@@ -52,8 +52,7 @@
     
     (when (> (vector-length nodes) idx)
       (let ((current-node (vector-ref nodes idx)))
-        ;(displayln node-values)
-        ;(displayln current-node)
+     
         (match current-node
         
           
@@ -61,8 +60,7 @@
            ;check condition
            (let* ((condition (for/or ([root-idx roots])
                            (not (eq? (vector-ref node-values root-idx) 'empty)))))
-          ;   (display "condition:" )
-          ;   (displayln condition)
+         
              
              (if condition 
                  ;if true return nothing
@@ -76,6 +74,7 @@
           ;for a function execute the function on the give value and store result
           [(func:single-function-node idx predecessor function event-var)
            (let* ((predecessor-value (vector-ref node-values (car predecessor)))
+                
                   (local-env (hash-set model-env event-var predecessor-value)))
             
              (cond ((eq? 'empty predecessor-value)
@@ -103,7 +102,7 @@
                              (vector-ref node-values left-predecessor-idx)
                              ;right
                              (vector-ref node-values right-predecessor-idx))))
-            ; (displayln value)
+         
              (vector-set! node-values idx value)
              (loop  (+ idx 1)  ))]
             
@@ -129,7 +128,7 @@
 
 
 (define (execute-turn deployedr input  turn-number)
-  (displayln "execute turn")
+  
   (define ins (deployedR-ins deployedr))
   (define nodes (deployedR-dag deployedr))
   (define outs (deployedR-outs deployedr))
@@ -143,11 +142,12 @@
             [value input])
         
         (vector-set! values idx value)))
-  (let ((local-env (hash-map (deployedR-model-vars deployedr) (lambda (k v) (cons k (model-var-val v))))))
- 
-  (functional-propagate  nodes values (vector-length ins) (make-immutable-hash local-env))
 
-  (let ((output  (for/vector ([idx outs])
+ (let ((local-env (make-immutable-hash (hash-map (deployedR-model-vars deployedr) (lambda (var val) (cons var (lookup-local-var-error val 'model global-env )))))
+                  )) 
+  (functional-propagate  nodes values (vector-length ins) local-env)
+
+  (let ((output  (for/list ([idx outs])
                     (vector-ref values idx))))
                     
     
@@ -155,15 +155,26 @@
     
       (match connector
         [(external-connector args)
-         (for ([arg args]
-               [out output])
-           (when (not (equal? 'empty out))
-             (displayln "upDATE STAR")
-         (match arg
-           [(model-var  val)
-          
-            (set-model-var-val! arg out)]
-           [(sink-fact-node fact-id widget) (update-view widget fact-id out)])))]
+         
+         (let loop
+           ([arg args]
+            [out output])
+           (when (not (null? arg))
+            
+                 (match (car arg)
+                   [(sink-fact-node fact-id widget)
+                    (let*-values
+                      (
+                       [(number-of-args) (send widget number-of-args fact-id)]
+                       [(new-args new-output) (split-at out number-of-args )])
+                     (when (not (member 'empty new-args))
+                       (update-view widget fact-id new-args))
+                    (loop (cdr arg) new-output))]
+                   [ val
+                     (when (not (equal? 'empty (car out)))
+                       (update-local-env! val 'model (car out) global-env))
+                    
+                     (loop (cdr arg) (cdr out))])))]
         [(internal-connector inputinfo app-info)
          (put-in-collector-from-deployedR! connector output  turn-number)])))))
        
@@ -225,8 +236,8 @@
   (let loop-put-in-colletor
     ([idx 0])
     
-    (when (< idx (vector-length values))
-      (let ((value (vector-ref values idx)))
+    (when (< idx (length values))
+      (let ((value (list-ref values idx)))
         (when (not (eq? 'empty value))
             
             (let ((full-collection (put-in-collector! collector

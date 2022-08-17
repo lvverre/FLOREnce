@@ -8,10 +8,16 @@
 (struct alpha-token  (id args) #:transparent #:mutable)
 
 (struct alpha-token-add alpha-token (expiration-time) #:transparent #:mutable)
+
+(define (set-expiration-time! token)
+  (when (>= (alpha-token-add-expiration-time token) 0)
+    (set-alpha-token-add-expiration-time! token (+ (current-seconds)
+                                                   (alpha-token-add-expiration-time token)))))
+      
 (define (make-alpha-token-add  id args alive-interval)
   (if (<= alive-interval 0)
       (alpha-token-add id args -1)
-      (alpha-token-add  id args (+ (current-seconds) alive-interval))))
+      (alpha-token-add  id args (+ current-seconds alive-interval))))
 
 (struct alpha-token-remove alpha-token ())
 (define (make-alpha-token-remove  id args)
