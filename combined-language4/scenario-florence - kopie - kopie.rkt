@@ -437,12 +437,9 @@
          then: (remove: (fact: food  ?itemID ?customerID ?type ?price)))
 
 
- 
   
   (update: (fact: client-1 orderLB-sink add) total-1  (fact: client-1 sum-totalL-sink change-value) with: add-menu-1)
   (update: (fact: client-1 orderLB-sink remove) total-1 (fact: client-1 sum-totalL-sink change-value) with: remove-menu-1)
-  (update: (fact: client-1 orderLB-sink add) total-1  (fact: client-1 sum-totalL-sink change-value) with: add-menu-2)
-  (update: (fact: client-1 orderLB-sink remove) total-1 (fact: client-1 sum-totalL-sink change-value) with: remove-menu-2)
   
   
   (reactor: session-buttonR
@@ -450,15 +447,22 @@
    (def: change (map: event (lambda: value  #t)))
    (out: change))
 
-  (reactor: session-resetR
+  (reactor: session-resetCleanR
             (in: event #:model customerID)
+            (def: clear-listbox (map: event (lambda: event #t)))
+            (def: new-total (map:  event (lambda: event 0)))
+            (def: new-total-label (map: event (lambda: new-total "0.0")))
             (def: interval (map: event (lambda: event 180)))
             (def: new-customerID (map: event (lambda: event (+ customerID))))
-            (out: interval new-customerID))
+            (out: clear-listbox new-total new-total-label interval new-customerID))
 
-  (deploy: session-resetR with: (fact: client-1 startB-source) customerID-1 as: reset)
-  (update: (fact: client-1 timer-sink start) customerID-1 with: reset)
-  
+  (deploy: reverse-R with: (fact: client-1 startB-source) as: reset2)
+  (update: (fact: client-1 milkC-sink change-value) with: reset2)
+  (update: (fact: client-1 eggsC-sink change-value) with: reset2)
+
+  (deploy: session-resetCleanR with: (fact: client-1 startB-source) customerID-1 as: cleanStart)
+  (update: (fact: client-1 orderLB-sink clear) total-1 (fact: client-1 sum-totalL-sink change-value)
+           (fact: client-1 timer-sink start) customerID-1 with: cleanStart)
             
   (deploy: session-buttonR with: (fact: client-1 startB-source) as: start-deployed)
   (update: (fact: client-1 fantaB-sink enabled) with: start-deployed)
@@ -489,34 +493,25 @@
   (update: promoC with: start-deployed)
   
   (reactor: sessionEndedER
-            (in: time #:model start-time)
-            (def: in-session (filter: time (lambda: time (> start-time 0))))
-            (def: session-ended (filter: in-session (lambda: cTime (> cTime start-time))))
-            (def: state (map: session-ended (lambda: time #f)))
+            (in: time payer #:model start-time)
+            (def: combine (or: payer time))
+            (def: state (map: combine (lambda: time #f)))
             (out: state))
-
-  (reactor: clear-textR
-            (in: time #:model start-time )
-            (def: in-session (filter: time (lambda: time (> start-time 0))))
-            (def: session-ended (filter: in-session (lambda: cTime (> cTime start-time))))
-            (def: result (map: session-ended (lambda: val "")))
-            (out: result))
   
-    (reactor: clear-orderR
-            (in: time #:model start-time )
-            (def: in-session (filter: time (lambda: time (> start-time 0))))
-            (def: session-ended (filter: in-session (lambda: cTime (> cTime start-time))))
-            (def: clear-listbox (map: session-ended (lambda: event #t)))
-            (def: new-total (map: session-ended (lambda: event 0)))
+    (reactor: clear-text-orderR
+            (in: time payer #:model start-time )
+            (def: combine (or: time payer))
+            (def: clear-listbox (map: combine (lambda: event #t)))
+            (def: result (map: combine (lambda: val "")))
+            (def: new-total (map:  combine (lambda: event 0)))
             (def: new-total-label (map: new-total (lambda: new-total "0.0")))          
-            (out: clear-listbox new-total new-total-label))
+            (out: clear-listbox new-total new-total-label result))
 
-    (deploy: clear-textR with: (fact: client-1 timer-source) client1-start-time as: sessionEndedTEXT)
-    (update: (fact: client-1 promoTC-sink clear) with: sessionEndedTEXT)
-    (deploy: clear-orderR with: (fact: client-1 timer-source) client1-start-time as: sessionEndedEL)
-    (update: (fact: client-1 orderLB-sink clear) total-1 (fact: client-1 sum-totalL-sink change-value) with: sessionEndedEL)
-
-  (deploy: sessionEndedER with: (fact: client-1 timer-source) client1-start-time as: sessionEndedED)
+    (deploy: clear-text-orderR with: (fact: client-1 timer-source) (fact: client-1 payerB-source) client1-start-time as: sessionEndedEL)
+    (update: (fact: client-1 orderLB-sink clear) total-1 (fact: client-1 sum-totalL-sink change-value)
+             (fact: client-1 promoTC-sink clear) with: sessionEndedEL)
+    
+    (deploy: sessionEndedER with: (fact: client-1 timer-source) (fact: client-1 payerB-source) client1-start-time as: sessionEndedED)
   (update: (fact: client-1 orderLB-sink enabled)  with: sessionEndedED)
   (update: (fact: client-1 fantaB-sink enabled) with: sessionEndedED)
   (update: (fact: client-1 colaB-sink enabled) with: sessionEndedED)
@@ -546,7 +541,6 @@
   (update: (fact: client-1 milkC-sink enabled) with: sessionEndedED)
   (update: (fact: client-1 eggsC-sink enabled) with: sessionEndedED)
   (update: (fact: client-1 timer-sink stop) with: sessionEndedED)
-
 ))
   
   

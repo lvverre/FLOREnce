@@ -35,7 +35,7 @@
                 
                ; (set-expiration-time! token)
                 (start-propagation token turn))
-               (else(displayln "remove token") (displayln token)(start-propagation token  turn)))]
+               (else(start-propagation token  turn)))]
         [(vnt-pair token node turn)
          #:when (emit-node? node)
        

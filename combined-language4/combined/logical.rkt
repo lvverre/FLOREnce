@@ -168,7 +168,6 @@
                (when event-env
                 
                  (when (compute-constraint event-env (alpha-node-constraints alpha-node))
-                   (displayln token)
                    (update-pms-and-propagate token event-env alpha-node  ))))))
           (else
          
@@ -218,7 +217,7 @@
            
 
   
-  (define (update-pms-and-propagate old-token new-pm-env node   )
+  (define (update-pms-and-propagate old-token new-pm-env node  )
    
     (let ((new-beta-token (if (add-token? old-token)
                          (make-beta-token-add  new-pm-env  node)
@@ -257,14 +256,12 @@
          (execute-join-node token (filter-node-partial-matches left-predecessor) node  ))]
     ;[(logic-connector _ _)
     [(logic-connector _ _)
-     (displayln 'logic-connector)
-     (displayln token)
      (add-to-priority-queue! turn-number node token )]
      [_
       
         (if (add-token? token)
-            (begin (add-to-priority-queue! turn-number node token))
-            (begin (remove-from-priority-queue! token node)))]))
+            (begin (add-to-priority-queue! (- turn-number 1) node token))
+            (begin (add-to-priority-queue! (- turn-number 1) node token)))]));(remove-from-priority-queue! token node)))]))
      ;(add-to-priority-queue! turn-number node token)]))
    #| [(emit-node _ _ _)
      (printf (format "Emit node \n"))

@@ -147,7 +147,7 @@
                   )) 
   (functional-propagate  nodes values (vector-length ins) local-env)
 
-  (let ((output  (for/vector ([idx outs])
+  (let ((output  (for/list ([idx outs])
                     (vector-ref values idx))))
                     
     
@@ -155,20 +155,26 @@
     
       (match connector
         [(external-connector args)
+         
          (let loop
            ([arg args]
             [out output])
-           (if (equal? 'empty out)
-               (match arg  
-                 [(sink-fact-node fact-id widget) (update-view widget fact-id out)]
-                 [ val
-         (match arg
-           
-           [(sink-fact-node fact-id widget) (update-view widget fact-id out)]
-           [ val
-             
+           (when (not (null? arg))
             
-            (update-local-env! val'model out global-env)])))]
+                 (match (car arg)
+                   [(sink-fact-node fact-id widget)
+                    (let*-values
+                      (
+                       [(number-of-args) (send widget number-of-args fact-id)]
+                       [(new-args new-output) (split-at out number-of-args )])
+                     (when (not (member 'empty new-args))
+                       (update-view widget fact-id new-args))
+                    (loop (cdr arg) new-output))]
+                   [ val
+                     (when (not (equal? 'empty (car out)))
+                       (update-local-env! val 'model (car out) global-env))
+                    
+                     (loop (cdr arg) (cdr out))])))]
         [(internal-connector inputinfo app-info)
          (put-in-collector-from-deployedR! connector output  turn-number)])))))
        
@@ -230,8 +236,8 @@
   (let loop-put-in-colletor
     ([idx 0])
     
-    (when (< idx (vector-length values))
-      (let ((value (vector-ref values idx)))
+    (when (< idx (length values))
+      (let ((value (list-ref values idx)))
         (when (not (eq? 'empty value))
             
             (let ((full-collection (put-in-collector! collector

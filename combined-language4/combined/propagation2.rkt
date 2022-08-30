@@ -30,12 +30,10 @@
       
          (execute-logic-connector node value turn)]
         [(vnt-pair token 'root turn)
-        
-         (cond ((add-token? token)
-                
+      
                ; (set-expiration-time! token)
-                (start-propagation token turn))
-               (else(start-propagation token  turn)))]
+                (start-propagation token turn)
+              ]
         [(vnt-pair token node turn)
          #:when (emit-node? node)
        
