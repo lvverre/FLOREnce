@@ -1,0 +1,1 @@
+("8.6" ta6nt ("551e8f7c7113f06e2c23c8134bcc22f1b1ae20a4" . "8b1893162a26f659d8a7a869ed5650ed58271e09") #"C:\\Users\\Louise2.0\\Documents\\PHD\\WORK\\FLORENCE\\IMPLEMENTATION\\FLOREnce\\OLD\\combined-language4\\logical\\environment.rkt" (collects #"errortrace" #"errortrace-key.rkt") (collects #"racket" #"main.rkt") (collects #"racket" #"runtime-config.rkt"))

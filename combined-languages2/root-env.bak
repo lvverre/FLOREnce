@@ -1,2 +1,0 @@
-#lang racket
-(struct root-env (env root))

@@ -1,4 +1,0 @@
-#lang racket
-(require "defmac.rkt")
-(defmac (connect: deploy-name as: args ... with: 
-(define ((compile model global-env )

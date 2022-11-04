@@ -1,7 +1,0 @@
-#lang racket
-(struct nmb (val))
-(struct str (val))
-(struct pair (first last))
-(struct app (op args))
-(struct def (var val))
-(struct sym (val))
